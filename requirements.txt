@@ -1,0 +1,18 @@
+# Core
+numpy>=1.24
+opencv-python>=4.8
+loguru>=0.7
+
+# YOLO / Vision
+ultralytics>=8.2.0
+torch>=2.1
+torchvision>=0.16
+
+# Driver monitoring (face / landmark)
+mediapipe>=0.10.9
+
+# Utils
+pydantic>=2.5
+
+
+# source .venv/bin/activate 
