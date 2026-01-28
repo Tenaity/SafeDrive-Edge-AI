@@ -1,3 +1,4 @@
+FORCE_LIFT = True  # mock lifting for testing policy
 import logging
 import os
 import time
@@ -85,7 +86,7 @@ class CranePipeline:
         if not self.check_connection():
             # If not connected, default to False (safe state? or True to be safe?)
             # Assuming "Free" is safe state to NOT annoy driver.
-            return {"is_lifting": False, "error": "PLC Disconnected"}
+            return {"is_lifting": True, "error": "PLC Disconnected"}
 
         try:
             # Read 1 byte from DB
@@ -96,7 +97,7 @@ class CranePipeline:
         except Exception as e:
             self.logger.error(f"PLC Read Error: {e}")
             self.connected = False # Mark as disconnected to trigger reconnect
-            return {"is_lifting": False, "error": str(e)}
+            return {"is_lifting": True, "error": str(e)}
 
     def close(self):
         if self.client:

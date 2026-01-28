@@ -1,3 +1,5 @@
+import os
+os.environ['MEDIAPIPE_DISABLE_GPU'] = '1'
 import cv2
 import time
 import numpy as np
@@ -32,7 +34,7 @@ class DriverStatePipeline:
         # ---- MediaPipe FaceMesh ----
         self.face_mesh = mp.solutions.face_mesh.FaceMesh(
             max_num_faces=1,
-            refine_landmarks=True,
+
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
