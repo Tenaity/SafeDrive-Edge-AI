@@ -32,6 +32,11 @@ api_logger = APILogger()
 last_evidence_time = 0.0
 EVIDENCE_COOLDOWN = 2.0  # seconds
 
+EVIDENCE_WINDOW_SEC = 60
+EVIDENCE_MAX_PER_WINDOW = 2
+evi_window_start = {}
+evi_window_count = {}
+
 cap = cv2.VideoCapture(0)
 
 def draw_yaw_vector(frame, nose_point, yaw_deg, threshold=15.0):
@@ -147,14 +152,23 @@ while True:
     # ---- Evidence Capture ----
     if alert.name != "NONE":
         now = time.time()
-        if now - last_evidence_time > EVIDENCE_COOLDOWN:
-            last_evidence_time = now
+        name = alert.name
+
+        ws = evi_window_start.get(name)
+        if ws is None or (now - ws) >= EVIDENCE_WINDOW_SEC:
+            evi_window_start[name] = now
+            evi_window_count[name] = 0
+
+        cnt = evi_window_count.get(name, 0)
+        if cnt < EVIDENCE_MAX_PER_WINDOW:
+            evi_window_count[name] = cnt + 1
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"output/evidence/alert_{alert.name}_{timestamp}.jpg"
+            filename = f"output/evidence/alert_{name}_{timestamp}.jpg"
 
             evidence_frame = frame.copy()
             cv2.putText(
-                evidence_frame, f"EVIDENCE: {alert.name}",
+                evidence_frame, f"EVIDENCE: {name}",
                 (10, 50),
                 cv2.FONT_HERSHEY_SIMPLEX, 1,
                 (0, 0, 255), 2
@@ -165,7 +179,7 @@ while True:
             print("Evidence saved:", filename, "ok=", ok_write)
 
             api_logger.log_alert(
-                alert_level=alert.name,
+                alert_level=name,
                 crane_status=crane_out,
                 driver_state=driver_out,
                 image_path=filename

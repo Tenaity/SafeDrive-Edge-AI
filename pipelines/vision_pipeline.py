@@ -17,8 +17,8 @@ class VisionPipeline:
         self.yolo_url = os.environ.get("YOLO_URL", "http://127.0.0.1:8000/detect")
 
         # Confidence thresholds (tune later)
-        self.CONF_PERSON = 0.30
-        self.CONF_PHONE = 0.25
+        self.CONF_PERSON = 0.40
+        self.CONF_PHONE = 0.4
 
         # COCO class ids
         self.CLS_PERSON = 0
