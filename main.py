@@ -130,10 +130,9 @@ while True:
     hands_out = hands_pipeline.run(frame)
     crane_out = crane_line.run() if crane_line is not None else {}
     if not isinstance(crane_out, dict):
+        # From crane_out, we have info about file_name
+        # Use some library to read the file audio
         crane_out = {}
-
-    if MOCK_LIFTING:
-        crane_out["is_lifting"] = True
 
     alert = policy.decide(vision_out, driver_out, hands_out, crane_out)
 

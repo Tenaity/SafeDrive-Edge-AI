@@ -14,6 +14,29 @@ except ImportError:
 
 load_dotenv()
 
+signal_map = {
+    'DB17.DBX7.0': {'db_number': 17, 'start_byte': 7, 'bit_index': 0, 'file_name': './voice/1.mp4', 'desc': 'Cẩu di chuyển qua hố cáp'},
+    'DB17.DBX7.1': {'db_number': 17, 'start_byte': 7, 'bit_index': 1, 'file_name': './voice/2.mp4', 'desc': 'Khung chụp đang nâng'},
+    'DB17.DBX7.2': {'db_number': 17, 'start_byte': 7, 'bit_index': 2, 'file_name': './voice/3.mp4', 'desc': 'Khung chụp đang hạ'},
+    'DB17.DBX7.3': {'db_number': 17, 'start_byte': 7, 'bit_index': 3, 'file_name': './voice/4.mp4', 'desc': 'Đang nâng tải nặng'},
+    'DB17.DBX7.4': {'db_number': 17, 'start_byte': 7, 'bit_index': 4, 'file_name': './voice/5.mp4', 'desc': 'Vượt quá giới hạn hành trình xe rùa phía trước'},
+    'DB17.DBX7.5': {'db_number': 17, 'start_byte': 7, 'bit_index': 5, 'file_name': './voice/6.mp4', 'desc': 'Vượt quá giới hạn hành trình xe rùa phía sau'},
+    'DB17.DBX7.6': {'db_number': 17, 'start_byte': 7, 'bit_index': 6, 'file_name': './voice/7.mp4', 'desc': 'Tải nâng vượt quá trọng tải cho phép'},
+    'DB17.DBX7.7': {'db_number': 17, 'start_byte': 7, 'bit_index': 7, 'file_name': './voice/8.mp4', 'desc': 'Tốc độ di chuyển vượt mức cho phép'},
+    'DB17.DBX8.0': {'db_number': 17, 'start_byte': 8, 'bit_index': 0, 'file_name': './voice/10.mp4', 'desc': 'Khung chụp đang khóa gù'},
+    'DB17.DBX8.1': {'db_number': 17, 'start_byte': 8, 'bit_index': 1, 'file_name': './voice/11.mp4', 'desc': 'Cửa cabin đang mở'},
+    'DB17.DBX8.2': {'db_number': 17, 'start_byte': 8, 'bit_index': 2, 'file_name': './voice/12.mp4', 'desc': 'Đang bị lệch tải'},
+    'DB17.DBX8.3': {'db_number': 17, 'start_byte': 8, 'bit_index': 3, 'file_name': './voice/13.mp4', 'desc': 'Quá giới hạn chiều cao khung chụp'},
+    'DB17.DBX8.4': {'db_number': 17, 'start_byte': 8, 'bit_index': 4, 'file_name': './voice/14.mp4', 'desc': 'Cửa buồng điện đang mở'},
+    'DB17.DBX8.5': {'db_number': 17, 'start_byte': 8, 'bit_index': 5, 'file_name': './voice/15.mp4', 'desc': 'Cẩu chuẩn bị di chuyển, chú ý quan sát xung quanh'},
+    'DB17.DBX8.6': {'db_number': 17, 'start_byte': 8, 'bit_index': 6, 'file_name': './voice/16.mp4', 'desc': 'Quá tốc độ di chuyển xe rùa'},
+    'DB17.DBX8.7': {'db_number': 17, 'start_byte': 8, 'bit_index': 7, 'file_name': './voice/17.mp4', 'desc': 'Cẩu đang bị lệch tải'},
+    'DB17.DBX9.0': {'db_number': 17, 'start_byte': 9, 'bit_index': 0, 'file_name': './voice/18.mp4', 'desc': 'Quá giới hạn di chuyển dài'},
+    'DB17.DBX9.1': {'db_number': 17, 'start_byte': 9, 'bit_index': 1, 'file_name': './voice/19.mp4', 'desc': 'Quá nhiệt buồng điện'},
+    'DB17.DBX9.2': {'db_number': 17, 'start_byte': 9, 'bit_index': 2, 'file_name': './voice/20.mp4', 'desc': 'Cảnh báo va chạm container khi di chuyển xe rùa'},
+    'DB17.DBX9.3': {'db_number': 17, 'start_byte': 9, 'bit_index': 3, 'file_name': './voice/21.mp4', 'desc': 'Tốc độ gió mạnh'},
+}
+
 class CranePipeline:
     def __init__(self):
         self.logger = logging.getLogger("CranePipeline")
@@ -22,9 +45,6 @@ class CranePipeline:
         self.ip = os.getenv("PLC_IP", "127.0.0.1")
         self.rack = int(os.getenv("PLC_RACK", "0"))
         self.slot = int(os.getenv("PLC_SLOT", "1"))
-        self.db_number = int(os.getenv("PLC_DB_NUMBER", "1"))
-        self.start_byte = int(os.getenv("PLC_START_BYTE", "0"))
-        self.bit_index = int(os.getenv("PLC_BIT_INDEX", "0"))
         
         self.mock_mode = os.getenv("MOCK_PLC", "false").lower() == "true"
         
@@ -78,26 +98,36 @@ class CranePipeline:
         Returns a dict: {"is_lifting": bool}
         """
         if self.mock_mode:
-            # In mock mode, check for a local file flag, or toggle periodically?
-            # For simplicity, let's look for a file named "MOCK_LIFTING" in current dir.
-            is_lifting = os.path.exists("MOCK_LIFTING")
-            return {"is_lifting": is_lifting}
+            return signal_map['DB17.DBX7.0']
 
         if not self.check_connection():
-            # If not connected, default to False (safe state? or True to be safe?)
-            # Assuming "Free" is safe state to NOT annoy driver.
-            return {"is_lifting": True, "error": "PLC Disconnected"}
+            return {"error": "PLC Disconnected"}
 
         try:
-            # Read 1 byte from DB
-            # snap7.client.Client.db_read(db_number, start, size)
-            data = self.client.db_read(self.db_number, self.start_byte, 1)
-            is_lifting = get_bool(data, 0, self.bit_index)
-            return {"is_lifting": is_lifting}
+            active_signals = {}
+            byte_cache = {}
+
+            for signal_name, cfg in signal_map.items():
+                db_number = cfg["db_number"]
+                start_byte = cfg["start_byte"]
+                bit_index = cfg["bit_index"]
+                cache_key = (db_number, start_byte)
+
+                if cache_key not in byte_cache:
+                    # Read exactly 1 byte for the requested DB and byte index.
+                    byte_cache[cache_key] = self.client.db_read(db_number, start_byte, 1)
+
+                data = byte_cache[cache_key]
+                bit_value = get_bool(data, 0, bit_index)
+
+                if bit_value:
+                    active_signals[signal_name] = signal_map[signal_name]
+
+            return active_signals
         except Exception as e:
             self.logger.error(f"PLC Read Error: {e}")
             self.connected = False # Mark as disconnected to trigger reconnect
-            return {"is_lifting": True, "error": str(e)}
+            return {"error": str(e)}
 
     def close(self):
         if self.client:
