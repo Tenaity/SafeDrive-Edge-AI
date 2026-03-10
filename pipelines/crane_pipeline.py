@@ -2,7 +2,9 @@ FORCE_LIFT = True  # mock lifting for testing policy
 import logging
 import os
 import time
+from typing import Dict, TypedDict
 from dotenv import load_dotenv
+import pygame
 
 # Try importing snap7, handle failure gracefully (e.g. if not installed yet)
 try:
@@ -14,27 +16,35 @@ except ImportError:
 
 load_dotenv()
 
-signal_map = {
-    'DB17.DBX7.0': {'db_number': 17, 'start_byte': 7, 'bit_index': 0, 'file_name': './voice/1.mp4', 'desc': 'Cẩu di chuyển qua hố cáp'},
-    'DB17.DBX7.1': {'db_number': 17, 'start_byte': 7, 'bit_index': 1, 'file_name': './voice/2.mp4', 'desc': 'Khung chụp đang nâng'},
-    'DB17.DBX7.2': {'db_number': 17, 'start_byte': 7, 'bit_index': 2, 'file_name': './voice/3.mp4', 'desc': 'Khung chụp đang hạ'},
-    'DB17.DBX7.3': {'db_number': 17, 'start_byte': 7, 'bit_index': 3, 'file_name': './voice/4.mp4', 'desc': 'Đang nâng tải nặng'},
-    'DB17.DBX7.4': {'db_number': 17, 'start_byte': 7, 'bit_index': 4, 'file_name': './voice/5.mp4', 'desc': 'Vượt quá giới hạn hành trình xe rùa phía trước'},
-    'DB17.DBX7.5': {'db_number': 17, 'start_byte': 7, 'bit_index': 5, 'file_name': './voice/6.mp4', 'desc': 'Vượt quá giới hạn hành trình xe rùa phía sau'},
-    'DB17.DBX7.6': {'db_number': 17, 'start_byte': 7, 'bit_index': 6, 'file_name': './voice/7.mp4', 'desc': 'Tải nâng vượt quá trọng tải cho phép'},
-    'DB17.DBX7.7': {'db_number': 17, 'start_byte': 7, 'bit_index': 7, 'file_name': './voice/8.mp4', 'desc': 'Tốc độ di chuyển vượt mức cho phép'},
-    'DB17.DBX8.0': {'db_number': 17, 'start_byte': 8, 'bit_index': 0, 'file_name': './voice/10.mp4', 'desc': 'Khung chụp đang khóa gù'},
-    'DB17.DBX8.1': {'db_number': 17, 'start_byte': 8, 'bit_index': 1, 'file_name': './voice/11.mp4', 'desc': 'Cửa cabin đang mở'},
-    'DB17.DBX8.2': {'db_number': 17, 'start_byte': 8, 'bit_index': 2, 'file_name': './voice/12.mp4', 'desc': 'Đang bị lệch tải'},
-    'DB17.DBX8.3': {'db_number': 17, 'start_byte': 8, 'bit_index': 3, 'file_name': './voice/13.mp4', 'desc': 'Quá giới hạn chiều cao khung chụp'},
-    'DB17.DBX8.4': {'db_number': 17, 'start_byte': 8, 'bit_index': 4, 'file_name': './voice/14.mp4', 'desc': 'Cửa buồng điện đang mở'},
-    'DB17.DBX8.5': {'db_number': 17, 'start_byte': 8, 'bit_index': 5, 'file_name': './voice/15.mp4', 'desc': 'Cẩu chuẩn bị di chuyển, chú ý quan sát xung quanh'},
-    'DB17.DBX8.6': {'db_number': 17, 'start_byte': 8, 'bit_index': 6, 'file_name': './voice/16.mp4', 'desc': 'Quá tốc độ di chuyển xe rùa'},
-    'DB17.DBX8.7': {'db_number': 17, 'start_byte': 8, 'bit_index': 7, 'file_name': './voice/17.mp4', 'desc': 'Cẩu đang bị lệch tải'},
-    'DB17.DBX9.0': {'db_number': 17, 'start_byte': 9, 'bit_index': 0, 'file_name': './voice/18.mp4', 'desc': 'Quá giới hạn di chuyển dài'},
-    'DB17.DBX9.1': {'db_number': 17, 'start_byte': 9, 'bit_index': 1, 'file_name': './voice/19.mp4', 'desc': 'Quá nhiệt buồng điện'},
-    'DB17.DBX9.2': {'db_number': 17, 'start_byte': 9, 'bit_index': 2, 'file_name': './voice/20.mp4', 'desc': 'Cảnh báo va chạm container khi di chuyển xe rùa'},
-    'DB17.DBX9.3': {'db_number': 17, 'start_byte': 9, 'bit_index': 3, 'file_name': './voice/21.mp4', 'desc': 'Tốc độ gió mạnh'},
+
+class SignalConfig(TypedDict):
+    db_number: int
+    start_byte: int
+    bit_index: int
+    file_name: str
+    desc: str
+
+signal_map: Dict[str, SignalConfig] = {
+    'DB17.DBX7.0': {'db_number': 17, 'start_byte': 7, 'bit_index': 0, 'file_name': './voices/1.mp3', 'desc': 'Cẩu di chuyển qua hố cáp'},
+    'DB17.DBX7.1': {'db_number': 17, 'start_byte': 7, 'bit_index': 1, 'file_name': './voices/2.mp3', 'desc': 'Khung chụp đang nâng'},
+    'DB17.DBX7.2': {'db_number': 17, 'start_byte': 7, 'bit_index': 2, 'file_name': './voices/3.mp3', 'desc': 'Khung chụp đang hạ'},
+    'DB17.DBX7.3': {'db_number': 17, 'start_byte': 7, 'bit_index': 3, 'file_name': './voices/4.mp3', 'desc': 'Đang nâng tải nặng'},
+    'DB17.DBX7.4': {'db_number': 17, 'start_byte': 7, 'bit_index': 4, 'file_name': './voices/5.mp3', 'desc': 'Vượt quá giới hạn hành trình xe rùa phía trước'},
+    'DB17.DBX7.5': {'db_number': 17, 'start_byte': 7, 'bit_index': 5, 'file_name': './voices/6.mp3', 'desc': 'Vượt quá giới hạn hành trình xe rùa phía sau'},
+    'DB17.DBX7.6': {'db_number': 17, 'start_byte': 7, 'bit_index': 6, 'file_name': './voices/7.mp3', 'desc': 'Tải nâng vượt quá trọng tải cho phép'},
+    'DB17.DBX7.7': {'db_number': 17, 'start_byte': 7, 'bit_index': 7, 'file_name': './voices/8.mp3', 'desc': 'Tốc độ di chuyển vượt mức cho phép'},
+    'DB17.DBX8.0': {'db_number': 17, 'start_byte': 8, 'bit_index': 0, 'file_name': './voices/10.mp3', 'desc': 'Khung chụp đang khóa gù'},
+    'DB17.DBX8.1': {'db_number': 17, 'start_byte': 8, 'bit_index': 1, 'file_name': './voices/11.mp3', 'desc': 'Cửa cabin đang mở'},
+    'DB17.DBX8.2': {'db_number': 17, 'start_byte': 8, 'bit_index': 2, 'file_name': './voices/12.mp3', 'desc': 'Đang bị lệch tải'},
+    'DB17.DBX8.3': {'db_number': 17, 'start_byte': 8, 'bit_index': 3, 'file_name': './voices/13.mp3', 'desc': 'Quá giới hạn chiều cao khung chụp'},
+    'DB17.DBX8.4': {'db_number': 17, 'start_byte': 8, 'bit_index': 4, 'file_name': './voices/14.mp3', 'desc': 'Cửa buồng điện đang mở'},
+    'DB17.DBX8.5': {'db_number': 17, 'start_byte': 8, 'bit_index': 5, 'file_name': './voices/15.mp3', 'desc': 'Cẩu chuẩn bị di chuyển, chú ý quan sát xung quanh'},
+    'DB17.DBX8.6': {'db_number': 17, 'start_byte': 8, 'bit_index': 6, 'file_name': './voices/16.mp3', 'desc': 'Quá tốc độ di chuyển xe rùa'},
+    'DB17.DBX8.7': {'db_number': 17, 'start_byte': 8, 'bit_index': 7, 'file_name': './voices/17.mp3', 'desc': 'Cẩu đang bị lệch tải'},
+    'DB17.DBX9.0': {'db_number': 17, 'start_byte': 9, 'bit_index': 0, 'file_name': './voices/18.mp3', 'desc': 'Quá giới hạn di chuyển dài'},
+    'DB17.DBX9.1': {'db_number': 17, 'start_byte': 9, 'bit_index': 1, 'file_name': './voices/19.mp3', 'desc': 'Quá nhiệt buồng điện'},
+    'DB17.DBX9.2': {'db_number': 17, 'start_byte': 9, 'bit_index': 2, 'file_name': './voices/20.mp3', 'desc': 'Cảnh báo va chạm container khi di chuyển xe rùa'},
+    'DB17.DBX9.3': {'db_number': 17, 'start_byte': 9, 'bit_index': 3, 'file_name': './voices/21.mp3', 'desc': 'Tốc độ gió mạnh'},
 }
 
 class CranePipeline:
@@ -93,7 +103,7 @@ class CranePipeline:
             
         return self.connected
 
-    def run(self, *args, **kwargs):
+    def run(self, *args, **kwargs) -> Dict[str, SignalConfig]:
         """
         Returns a dict: {"is_lifting": bool}
         """
@@ -128,8 +138,40 @@ class CranePipeline:
             self.logger.error(f"PLC Read Error: {e}")
             self.connected = False # Mark as disconnected to trigger reconnect
             return {"error": str(e)}
+        
+    def voice_alert(self, signals: Dict[str, SignalConfig]):
+        """Play one or multiple alerts sequentially.
+
+        Args:
+            signals: List[dict] where each dict includes 'file_name' and 'desc'.
+        """
+
+        try:
+            if pygame.mixer.get_init() is None:
+                pygame.mixer.init()
+        except Exception as e:
+            self.logger.error(f"Failed to initialize audio output: {e}")
+            return
+
+        for (k, v) in signals.items():
+            file_name = v['file_name']
+            desc = v['desc']
+
+            try:
+                self.logger.info(f"Playing alert: {desc} from {file_name}")
+                pygame.mixer.music.load(file_name)
+                pygame.mixer.music.play()
+
+                # Block until this file ends so alerts are played in strict order.
+                while pygame.mixer.music.get_busy():
+                    pygame.time.Clock().tick(20)
+            except Exception as e:
+                self.logger.error(f"Failed to play audio {file_name}: {e}")
 
     def close(self):
+        if pygame.mixer.get_init() is not None:
+            pygame.mixer.quit()
+            
         if self.client:
             self.client.disconnect()
             self.client.destroy()
