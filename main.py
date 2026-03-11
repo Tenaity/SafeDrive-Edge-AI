@@ -129,11 +129,7 @@ while True:
 
     hands_out = hands_pipeline.run(frame)
     crane_out = crane_line.run() if crane_line is not None else {}
-    if not isinstance(crane_out, dict):
-        crane_out = {}
-
-    if MOCK_LIFTING:
-        crane_out["is_lifting"] = True
+    crane_line.voice_alert(crane_out)
 
     alert = policy.decide(vision_out, driver_out, hands_out, crane_out)
 
@@ -144,7 +140,7 @@ while True:
         "drowsy=", driver_out.get("drowsy"),
         "distracted=", driver_out.get("distracted"),
         "no_hand=", hands_out.get("no_hand") if isinstance(hands_out, dict) else None,
-        "lifting=", crane_out.get("is_lifting") if isinstance(crane_out, dict) else None
+        "crane=", crane_out
     )
 
     voice_alert.speak(alert, driver_out, vision_out)
