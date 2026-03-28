@@ -3,6 +3,7 @@ import logging
 import os
 import time
 from typing import Dict, TypedDict
+from unittest import signals
 from dotenv import load_dotenv
 import pygame
 
@@ -52,7 +53,7 @@ class CranePipeline:
         self.logger = logging.getLogger("CranePipeline")
         
         # Load config
-        self.ip = os.getenv("PLC_IP", "127.0.0.1")
+        self.ip = os.getenv("PLC_IP", "192.168.1.1")
         self.rack = int(os.getenv("PLC_RACK", "0"))
         self.slot = int(os.getenv("PLC_SLOT", "1"))
         
@@ -76,13 +77,17 @@ class CranePipeline:
 
         try:
             self.client = snap7.client.Client()
+            self.logger.info(f"Connecting PLC: ip={self.ip}, rack={self.rack}, slot={self.slot}")
+            print(f"[PLC DEBUG] ip={self.ip}, rack={self.rack}, slot={self.slot}, mock={self.mock_mode}")
             self.client.connect(self.ip, self.rack, self.slot)
             self.connected = self.client.get_connected()
+            print(f"[PLC DEBUG] connected={self.connected}")
             if self.connected:
                 self.logger.info(f"Connected to PLC at {self.ip}")
             else:
                 self.logger.error(f"Failed to connect to PLC at {self.ip}")
         except Exception as e:
+            print(f"[PLC DEBUG] connect error={e}")
             self.logger.error(f"PLC Connection Error: {e}")
             self.connected = False
 
@@ -140,12 +145,6 @@ class CranePipeline:
             return {"error": str(e)}
         
     def voice_alert(self, signals: Dict[str, SignalConfig]):
-        """Play one or multiple alerts sequentially.
-
-        Args:
-            signals: List[dict] where each dict includes 'file_name' and 'desc'.
-        """
-
         try:
             if pygame.mixer.get_init() is None:
                 pygame.mixer.init()
@@ -154,20 +153,29 @@ class CranePipeline:
             return
 
         for (k, v) in signals.items():
-            file_name = v['file_name']
-            desc = v['desc']
+            if isinstance(v, str):
+                file_name = v
+                desc = k
+            elif isinstance(v, dict):
+                file_name = v.get('file_name', '')
+                desc = v.get('desc', k)
+            else:
+                self.logger.warning(f"Skip invalid signal format: key={k}, value={v}")
+                continue
+
+            if not file_name:
+                self.logger.warning(f"Missing file_name for signal: key={k}, value={v}")
+                continue
 
             try:
                 self.logger.info(f"Playing alert: {desc} from {file_name}")
                 pygame.mixer.music.load(file_name)
                 pygame.mixer.music.play()
-
-                # Block until this file ends so alerts are played in strict order.
                 while pygame.mixer.music.get_busy():
                     pygame.time.Clock().tick(20)
+
             except Exception as e:
                 self.logger.error(f"Failed to play audio {file_name}: {e}")
-
     def close(self):
         if pygame.mixer.get_init() is not None:
             pygame.mixer.quit()

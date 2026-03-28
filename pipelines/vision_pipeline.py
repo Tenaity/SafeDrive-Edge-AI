@@ -53,9 +53,9 @@ class VisionPipeline:
                 timeout=self.TIMEOUT_SEC,
             )
             data = r.json()
-        except Exception:
-            # On any network/JSON error, return empty (caller may cache last dets if desired)
-            return {"phone": False, "dets": []}
+        except Exception as e:
+            print(f"Vision API error: {e}")
+            return self.last_out
 
         if not data.get("ok"):
             return {"phone": False, "dets": []}

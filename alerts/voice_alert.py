@@ -1,4 +1,5 @@
 import time
+import pygame
 import pyttsx3
 
 class VoiceAlert:
@@ -43,19 +44,22 @@ class VoiceAlert:
     def speak(self, alert_level, driver, vision):
         if alert_level.name in ("NONE", "LOW"):
             return
-
         # ưu tiên HIGH, và chỉ nói 1 câu mỗi lần gọi
         if alert_level.name == "HIGH":
             if driver.get("drowsy") and self._can_speak("drowsy"):
                 self.engine.say("Nguy hiểm. Người lái có dấu hiệu buồn ngủ. Vui lòng dừng xe và nghỉ ngơi ngay.")
                 self.engine.runAndWait()
                 return
-
             if driver.get("distracted") and self._can_speak("distracted"):
                 self.engine.say("Nguy hiểm. Người lái mất tập trung. Vui lòng chú ý quan sát.")
                 self.engine.runAndWait()
                 return
-
+        if alert_level.name == "PHONE":
+            if vision.get("phone") and self.can_speak("phone"):
+                file_name = "./voices/22.mp3"
+                pygame.mixer.music.load(file_name)
+                pygame.mixer.music.play()
+                return
         if alert_level.name == "MEDIUM":
             if vision.get("phone") and self._can_speak("phone"):
                 self.engine.say("Cảnh báo. Vui lòng không sử dụng điện thoại khi đang lái xe.")
