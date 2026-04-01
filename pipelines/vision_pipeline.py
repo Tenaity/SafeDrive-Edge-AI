@@ -6,90 +6,120 @@ import requests
 
 class VisionPipeline:
     """
-    VisionPipeline (HTTP):
-    - Send frame to YOLO service via YOLO_URL
-    - Filter by confidence
-    - Expose safety-relevant objects (person, cell phone)
-    - Smooth phone detection with a short hold window
+    Fast VisionPipeline:
+    - Send smaller JPEG to YOLO server
+    - Lower request rate to reduce lag
+    - Keep structured person/phone candidates
+    - Reuse HTTP session for lower overhead
+    - Avoid stale output holding forever on repeated failures
     """
 
     def __init__(self):
         self.yolo_url = os.environ.get("YOLO_URL", "http://127.0.0.1:8000/detect")
+        print(f"[YOLO URL] {self.yolo_url}")
 
-        # Confidence thresholds (tune later)
-        self.CONF_PERSON = 0.40
-        self.CONF_PHONE = 0.4
+        # timeout vừa phải để không treo pipeline
+        self.TIMEOUT_SEC = 1.5
 
-        # COCO class ids
-        self.CLS_PERSON = 0
-        self.CLS_PHONE = 67
-
-        # Network timeout (YOLO service on Jetson can be slow)
-        self.TIMEOUT_SEC = 2.0
-
-        # Phone smoothing (hold detection for a few frames)
-        self.phone_hold = 0
-        self.PHONE_HOLD_FRAMES = 6
-
-        # Throttle YOLO calls to reduce lag (Jetson Nano)
+        # giảm tần suất gọi để đỡ lag
         self.last_call = 0.0
-        self.CALL_EVERY_SEC = 0.20  # ~5 FPS YOLO
-        self.last_out = {"phone": False, "dets": []}
+        self.CALL_EVERY_SEC = 0.30
+
+        self.last_out = {
+            "phone": False,
+            "dets": [],
+            "persons": [],
+            "phones": []
+        }
+
+        # resize trước khi gửi API
+        self.SEND_LONG_SIDE = 960
+        self.JPEG_QUALITY = 65
+
+        # quản lý lỗi / stale output
+        self.consecutive_failures = 0
+        self.MAX_FAILURES_BEFORE_CLEAR = 3
+
+        # tái sử dụng HTTP connection
+        self.session = requests.Session()
+
+    def _resize_keep_ratio(self, frame, long_side):
+        h, w = frame.shape[:2]
+        if max(h, w) <= long_side:
+            return frame
+
+        scale = long_side / float(max(h, w))
+        nw = int(w * scale)
+        nh = int(h * scale)
+        return cv2.resize(frame, (nw, nh), interpolation=cv2.INTER_LINEAR)
+
+    def _clear_output(self):
+        self.last_out = {
+            "phone": False,
+            "dets": [],
+            "persons": [],
+            "phones": []
+        }
 
     def run(self, frame):
+        if frame is None or not hasattr(frame, "shape") or frame.size == 0:
+            return self.last_out
+
         now = time.time()
         if now - self.last_call < self.CALL_EVERY_SEC:
             return self.last_out
+
         self.last_call = now
-        # Encode JPEG to send
-        ok, jpg = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+
+        send_frame = self._resize_keep_ratio(frame, self.SEND_LONG_SIDE)
+
+        ok, jpg = cv2.imencode(
+            ".jpg",
+            send_frame,
+            [int(cv2.IMWRITE_JPEG_QUALITY), self.JPEG_QUALITY]
+        )
         if not ok:
-            return {"phone": False, "dets": []}
+            return self.last_out
 
         try:
-            r = requests.post(
+            r = self.session.post(
                 self.yolo_url,
                 files={"image": ("frame.jpg", jpg.tobytes(), "image/jpeg")},
                 timeout=self.TIMEOUT_SEC,
             )
+            r.raise_for_status()
             data = r.json()
-        except Exception:
-            # On any network/JSON error, return empty (caller may cache last dets if desired)
-            return {"phone": False, "dets": []}
+            if not isinstance(data, dict):
+                self.consecutive_failures += 1
+                if self.consecutive_failures >= self.MAX_FAILURES_BEFORE_CLEAR:
+                    self._clear_output()
+                return self.last_out
+
+        except Exception as e:
+            print(f"Vision API error: {e}")
+            self.consecutive_failures += 1
+            if self.consecutive_failures >= self.MAX_FAILURES_BEFORE_CLEAR:
+                self._clear_output()
+            return self.last_out
 
         if not data.get("ok"):
-            return {"phone": False, "dets": []}
+            self.consecutive_failures += 1
+            if self.consecutive_failures >= self.MAX_FAILURES_BEFORE_CLEAR:
+                self._clear_output()
+            return self.last_out
 
-        dets = []
-        phone_detected_now = False
+        self.consecutive_failures = 0
 
-        for det in data.get("dets", []):
-            try:
-                cls = int(det.get("cls", -1))
-                conf = float(det.get("conf", 0.0))
-                xyxy = det.get("xyxy", None)
-                if not xyxy or len(xyxy) != 4:
-                    continue
-            except Exception:
-                continue
-
-            # Filter & keep only relevant objects
-            if cls == self.CLS_PERSON and conf >= self.CONF_PERSON:
-                dets.append(det)
-
-            elif cls == self.CLS_PHONE and conf >= self.CONF_PHONE:
-                phone_detected_now = True
-                dets.append(det)
-
-        # Smooth phone: hold it for a few frames to avoid flicker
-        if phone_detected_now:
-            self.phone_hold = self.PHONE_HOLD_FRAMES
-        else:
-            self.phone_hold = max(0, self.phone_hold - 1)
-
-        phone_detected = (self.phone_hold > 0)
-
-        return {
-            "phone": phone_detected,
-            "dets": dets,
+        self.last_out = {
+            "phone": False,
+            "dets": data.get("dets", []),
+            "persons": data.get("persons", []),
+            "phones": data.get("phones", [])
         }
+        return self.last_out
+
+    def close(self):
+        try:
+            self.session.close()
+        except Exception:
+            pass

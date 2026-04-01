@@ -1,32 +1,58 @@
-import requests
-import threading
-import json
-import logging
 import os
+import logging
+import threading
 from datetime import datetime
+
+import requests
+
 
 class APILogger:
     def __init__(self):
-        self.endpoint = os.getenv("API_ENDPOINT", "")
+        self.endpoint = os.getenv("API_ENDPOINT", "").strip()
         self.logger = logging.getLogger("APILogger")
         self.enabled = bool(self.endpoint)
 
         if not self.enabled:
             self.logger.warning("API_ENDPOINT not set. Logging to API disabled.")
 
+    @staticmethod
+    def _safe_dict(data):
+        if not isinstance(data, dict):
+            return {}
+
+        safe = {}
+        for k, v in data.items():
+            try:
+                if isinstance(v, (str, int, float, bool)) or v is None:
+                    safe[k] = v
+                elif isinstance(v, dict):
+                    safe[k] = {kk: str(vv) for kk, vv in v.items()}
+                elif isinstance(v, (list, tuple)):
+                    safe[k] = [str(x) for x in v]
+                else:
+                    safe[k] = str(v)
+            except Exception:
+                safe[k] = str(v)
+        return safe
+
     def _send_payload(self, payload):
         if not self.enabled:
             return
 
         try:
-            headers = {'Content-Type': 'application/json'}
-            response = requests.post(self.endpoint, json=payload, headers=headers, timeout=5)
+            response = requests.post(
+                self.endpoint,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=5
+            )
+
             if response.status_code == 200:
-                self.logger.info("Alert sent to API successfully.")
+                self.logger.info("[API LOGGER] Alert sent successfully.")
             else:
-                self.logger.warning(f"Failed to send alert to API. Status: {response.status_code}")
+                self.logger.warning(f"[API LOGGER] Failed to send alert. Status: {response.status_code}")
         except Exception as e:
-            self.logger.error(f"Error sending alert to API: {e}")
+            self.logger.error(f"[API LOGGER] Error sending alert: {e}")
 
     def log_alert(self, alert_level, crane_status, driver_state, image_path=None):
         """
@@ -35,17 +61,18 @@ class APILogger:
         if not self.enabled:
             return
 
+        if hasattr(alert_level, "name"):
+            alert_level_value = alert_level.name
+        else:
+            alert_level_value = str(alert_level)
+
         payload = {
             "timestamp": datetime.now().isoformat(),
-            "alert_level": alert_level,
-            "crane_status": crane_status,
-            "driver_state": {k: str(v) for k, v in driver_state.items()}, # Ensure serializable
-            "image_path": image_path
-            # Note: For actual image upload, we'd need multipart/form-data.
-            # Here we send the path, assuming the dashboard reads from shared storage
-            # or we implement image upload later.
+            "alert_level": alert_level_value,
+            "crane_status": self._safe_dict(crane_status),
+            "driver_state": self._safe_dict(driver_state),
+            "image_path": image_path,
         }
 
-        # Run in a separate thread to avoid blocking the video processing loop
-        t = threading.Thread(target=self._send_payload, args=(payload,))
+        t = threading.Thread(target=self._send_payload, args=(payload,), daemon=True)
         t.start()

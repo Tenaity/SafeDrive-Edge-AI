@@ -1,63 +1,118 @@
+import os
 import time
-import pyttsx3
+import logging
+import pygame
+from pygame import key
+
 
 class VoiceAlert:
-    def __init__(self, cooldown_sec=5, window_sec=60, max_per_window=2):
-        self.engine = pyttsx3.init()
-        self.engine.setProperty("voice", "aav/vi+f1")
-        self.engine.setProperty("rate", 160)
-        self.engine.setProperty("volume", 1.0)
+    """
+    VoiceAlert:
+    - Play AI alert audio on dedicated pygame channel
+    - Cooldown per alert type
+    - Safe path handling
+    - Safe cleanup / stop / reset
+    """
 
-        # anti-spam config
+    def __init__(self, cooldown_sec=8):
+        self.logger = logging.getLogger("VoiceAlert")
         self.cooldown_sec = cooldown_sec
-        self.window_sec = window_sec
-        self.max_per_window = max_per_window
+        self.last_spoken_at = {}
 
-        self.last_spoken_at = {}    # key -> last_ts
-        self.window_start = {}      # key -> window_start_ts
-        self.window_count = {}      # key -> count in current window
+        self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.voice_dir = os.path.join(self.base_dir, "voices")
 
-    def _can_speak(self, key):
+        self.ai_channel = None
+        self._ensure_audio()
+
+    def _ensure_audio(self):
+        try:
+            if pygame.mixer.get_init() is None:
+                pygame.mixer.init()
+            self.ai_channel = pygame.mixer.Channel(0)   # Channel 0 dành riêng cho AI
+        except Exception as e:
+            self.logger.error(f"Failed to initialize pygame mixer: {e}")
+            self.ai_channel = None
+
+    def _can_speak(self, key: str) -> bool:
         now = time.time()
+        last = self.last_spoken_at.get(key, 0.0)
 
-        # cooldown ngắn (chống nói liên tục từng frame)
-        last = self.last_spoken_at.get(key, 0)
-        if now - last < self.cooldown_sec:
+        cooldown = self.cooldown_sec
+        if key == "medium":
+            cooldown = 30.0
+
+        if now - last < cooldown:
             return False
 
-        # window quota (2 lần / 60s)
-        ws = self.window_start.get(key)
-        if ws is None or (now - ws) >= self.window_sec:
-            self.window_start[key] = now
-            self.window_count[key] = 0
-
-        cnt = self.window_count.get(key, 0)
-        if cnt >= self.max_per_window:
-            return False
-
-        # pass
-        self.window_count[key] = cnt + 1
         self.last_spoken_at[key] = now
         return True
 
-    def speak(self, alert_level, driver, vision):
-        if alert_level.name in ("NONE", "LOW"):
+    def _voice_path(self, file_name: str):
+        return os.path.join(self.voice_dir, file_name)
+
+    def _play_file(self, file_name: str):
+        self._ensure_audio()
+
+        if self.ai_channel is None:
             return
 
-        # ưu tiên HIGH, và chỉ nói 1 câu mỗi lần gọi
-        if alert_level.name == "HIGH":
+        file_path = self._voice_path(file_name)
+        if not os.path.exists(file_path):
+            self.logger.warning(f"AI audio file not found: {file_path}")
+            return
+
+        try:
+            snd = pygame.mixer.Sound(file_path)
+            self.ai_channel.play(snd)
+
+            while self.ai_channel.get_busy():
+                time.sleep(0.05)
+
+        except Exception as e:
+            self.logger.error(f"AI audio error: {e}")
+
+    def speak(self, alert_level, driver, vision):
+        alert_name = getattr(alert_level, "name", str(alert_level))
+
+        if alert_name in ("NONE", "LOW"):
+            return
+
+        driver = driver or {}
+        vision = vision or {}
+
+        if alert_name == "HIGH":
             if driver.get("drowsy") and self._can_speak("drowsy"):
-                self.engine.say("Nguy hiểm. Người lái có dấu hiệu buồn ngủ. Vui lòng dừng xe và nghỉ ngơi ngay.")
-                self.engine.runAndWait()
+                self._play_file("21.mp3")
                 return
-
+            
+            if driver.get("yawning") and self._can_speak("yawning"):
+                    self._play_file("21.mp3")
+                    return
+                
             if driver.get("distracted") and self._can_speak("distracted"):
-                self.engine.say("Nguy hiểm. Người lái mất tập trung. Vui lòng chú ý quan sát.")
-                self.engine.runAndWait()
+                self._play_file("21.mp3")
                 return
 
-        if alert_level.name == "MEDIUM":
+        if alert_name == "PHONE":
             if vision.get("phone") and self._can_speak("phone"):
-                self.engine.say("Cảnh báo. Vui lòng không sử dụng điện thoại khi đang lái xe.")
-                self.engine.runAndWait()
+                self._play_file("22.mp3")
                 return
+
+    def stop(self):
+        try:
+            if self.ai_channel is not None:
+                self.ai_channel.stop()
+        except Exception:
+            pass
+
+    def reset(self):
+        self.last_spoken_at.clear()
+
+    def close(self):
+        self.stop()
+        try:
+            if pygame.mixer.get_init() is not None:
+                pygame.mixer.quit()
+        except Exception:
+            pass
