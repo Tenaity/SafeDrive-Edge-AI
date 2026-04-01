@@ -5,7 +5,7 @@ services:
     build: ./yolo_service
     network_mode: host
     volumes:
-      - ../models:/models:ro
+      - ./../models:/models:ro
     environment:
       - ONNX_PATH=/models/yolov8n.onnx
 
@@ -15,7 +15,7 @@ services:
     devices:
       - /dev/video0:/dev/video0
     volumes:
-      - ..:/workspace
+      - ./..:/workspace
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - /usr/local/cuda:/usr/local/cuda:ro
     working_dir: /workspace
