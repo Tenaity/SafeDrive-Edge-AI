@@ -2,7 +2,6 @@ import os
 import time
 import logging
 import pygame
-from pygame import key
 
 
 class VoiceAlert:
@@ -73,7 +72,7 @@ class VoiceAlert:
             self.logger.error(f"AI audio error: {e}")
 
     def speak(self, alert_level, driver, vision):
-        alert_name = getattr(alert_level, "name", str(alert_level))
+        alert_name = alert_level.name if hasattr(alert_level, "name") else str(alert_level)
 
         if alert_name in ("NONE", "LOW"):
             return
@@ -111,8 +110,3 @@ class VoiceAlert:
 
     def close(self):
         self.stop()
-        try:
-            if pygame.mixer.get_init() is not None:
-                pygame.mixer.quit()
-        except Exception:
-            pass

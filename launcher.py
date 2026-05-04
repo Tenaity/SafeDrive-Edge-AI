@@ -14,12 +14,12 @@ except ImportError:
 
 load_dotenv()
 
-PLC_IP = os.getenv("PLC_IP", "192.168.1.1")
+PLC_IP = os.getenv("PLC_IP", "192.168.150.103")
 PLC_RACK = int(os.getenv("PLC_RACK", "0"))
-PLC_SLOT = int(os.getenv("PLC_SLOT", "1"))
+PLC_SLOT = int(os.getenv("PLC_SLOT", "2"))
 
 START_DB_NUMBER = 17
-START_BYTE = 9
+START_BYTE = 16
 START_BIT = 4
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -158,12 +158,17 @@ def main():
 
     print("[LAUNCHER] Started")
 
+    consecutive_failures = 0
+
     while True:
         try:
             if not ensure_client():
-                time.sleep(RECONNECT_SEC)
+                backoff = min(RECONNECT_SEC * (2 ** consecutive_failures), 60.0)
+                consecutive_failures += 1
+                time.sleep(backoff)
                 continue
 
+            consecutive_failures = 0
             start_enable = read_start_bit()
 
             if start_enable != last_state:

@@ -25,26 +25,26 @@ class SignalConfig(TypedDict):
 
 
 signal_map: Dict[str, SignalConfig] = {
-    "DB17.DBX7.0": {"db_number": 17, "start_byte": 7, "bit_index": 0, "file_name": "./voices/1.mp3", "desc": "Cẩu di chuyển qua hố cáp"},
-    "DB17.DBX7.1": {"db_number": 17, "start_byte": 7, "bit_index": 1, "file_name": "./voices/2.mp3", "desc": "Khung chụp đang nâng"},
-    "DB17.DBX7.2": {"db_number": 17, "start_byte": 7, "bit_index": 2, "file_name": "./voices/3.mp3", "desc": "Khung chụp đang hạ"},
-    "DB17.DBX7.3": {"db_number": 17, "start_byte": 7, "bit_index": 3, "file_name": "./voices/4.mp3", "desc": "Đang nâng tải nặng"},
-    "DB17.DBX7.4": {"db_number": 17, "start_byte": 7, "bit_index": 4, "file_name": "./voices/5.mp3", "desc": "Vượt quá giới hạn hành trình xe rùa phía trước"},
-    "DB17.DBX7.5": {"db_number": 17, "start_byte": 7, "bit_index": 5, "file_name": "./voices/6.mp3", "desc": "Vượt quá giới hạn hành trình xe rùa phía sau"},
-    "DB17.DBX7.6": {"db_number": 17, "start_byte": 7, "bit_index": 6, "file_name": "./voices/7.mp3", "desc": "Tải nâng vượt quá trọng tải cho phép"},
-    "DB17.DBX7.7": {"db_number": 17, "start_byte": 7, "bit_index": 7, "file_name": "./voices/8.mp3", "desc": "Tốc độ di chuyển vượt mức cho phép"},
-    "DB17.DBX8.0": {"db_number": 17, "start_byte": 8, "bit_index": 0, "file_name": "./voices/10.mp3", "desc": "Khung chụp đang khóa gù"},
-    "DB17.DBX8.1": {"db_number": 17, "start_byte": 8, "bit_index": 1, "file_name": "./voices/11.mp3", "desc": "Cửa cabin đang mở"},
-    "DB17.DBX8.2": {"db_number": 17, "start_byte": 8, "bit_index": 2, "file_name": "./voices/12.mp3", "desc": "Đang bị lệch tải"},
-    "DB17.DBX8.3": {"db_number": 17, "start_byte": 8, "bit_index": 3, "file_name": "./voices/13.mp3", "desc": "Quá giới hạn chiều cao khung chụp"},
-    "DB17.DBX8.4": {"db_number": 17, "start_byte": 8, "bit_index": 4, "file_name": "./voices/14.mp3", "desc": "Cửa buồng điện đang mở"},
-    "DB17.DBX8.5": {"db_number": 17, "start_byte": 8, "bit_index": 5, "file_name": "./voices/15.mp3", "desc": "Cẩu chuẩn bị di chuyển, chú ý quan sát xung quanh"},
-    "DB17.DBX8.6": {"db_number": 17, "start_byte": 8, "bit_index": 6, "file_name": "./voices/16.mp3", "desc": "Quá tốc độ di chuyển xe rùa"},
-    "DB17.DBX8.7": {"db_number": 17, "start_byte": 8, "bit_index": 7, "file_name": "./voices/17.mp3", "desc": "Cẩu đang bị lệch tải"},
-    "DB17.DBX9.0": {"db_number": 17, "start_byte": 9, "bit_index": 0, "file_name": "./voices/18.mp3", "desc": "Quá giới hạn di chuyển dài"},
-    "DB17.DBX9.1": {"db_number": 17, "start_byte": 9, "bit_index": 1, "file_name": "./voices/19.mp3", "desc": "Quá nhiệt buồng điện"},
-    "DB17.DBX9.2": {"db_number": 17, "start_byte": 9, "bit_index": 2, "file_name": "./voices/20.mp3", "desc": "Cảnh báo va chạm container khi di chuyển xe rùa"},
-    "DB17.DBX9.3": {"db_number": 17, "start_byte": 9, "bit_index": 3, "file_name": "./voices/23.mp3", "desc": "Tốc độ gió mạnh"},
+    "DB17.DBX7.0": {"db_number": 17, "start_byte": 14, "bit_index": 0, "file_name": "./voices/1.mp3", "desc": "Cẩu di chuyển qua hố cáp"},
+    "DB17.DBX7.1": {"db_number": 17, "start_byte": 14, "bit_index": 1, "file_name": "./voices/2.mp3", "desc": "Khung chụp đang nâng"},
+    "DB17.DBX7.2": {"db_number": 17, "start_byte": 14, "bit_index": 2, "file_name": "./voices/3.mp3", "desc": "Khung chụp đang hạ"},
+    "DB17.DBX7.3": {"db_number": 17, "start_byte": 14, "bit_index": 3, "file_name": "./voices/4.mp3", "desc": "Đang nâng tải nặng"},
+    "DB17.DBX7.4": {"db_number": 17, "start_byte": 14, "bit_index": 4, "file_name": "./voices/5.mp3", "desc": "Vượt quá giới hạn hành trình xe rùa phía trước"},
+    "DB17.DBX7.5": {"db_number": 17, "start_byte": 14, "bit_index": 5, "file_name": "./voices/6.mp3", "desc": "Vượt quá giới hạn hành trình xe rùa phía sau"},
+    "DB17.DBX7.6": {"db_number": 17, "start_byte": 14, "bit_index": 6, "file_name": "./voices/7.mp3", "desc": "Tải nâng vượt quá trọng tải cho phép"},
+    "DB17.DBX7.7": {"db_number": 17, "start_byte": 14, "bit_index": 7, "file_name": "./voices/8.mp3", "desc": "Tốc độ di chuyển vượt mức cho phép"},
+    "DB17.DBX8.0": {"db_number": 17, "start_byte": 15, "bit_index": 0, "file_name": "./voices/10.mp3", "desc": "Khung chụp đang khóa gù"},
+    "DB17.DBX8.1": {"db_number": 17, "start_byte": 15, "bit_index": 1, "file_name": "./voices/11.mp3", "desc": "Cửa cabin đang mở"},
+    "DB17.DBX8.2": {"db_number": 17, "start_byte": 15, "bit_index": 2, "file_name": "./voices/12.mp3", "desc": "Đang bị lệch tải"},
+    "DB17.DBX8.3": {"db_number": 17, "start_byte": 15, "bit_index": 3, "file_name": "./voices/13.mp3", "desc": "Quá giới hạn chiều cao khung chụp"},
+    "DB17.DBX8.4": {"db_number": 17, "start_byte": 15, "bit_index": 4, "file_name": "./voices/14.mp3", "desc": "Cửa buồng điện đang mở"},
+    "DB17.DBX8.5": {"db_number": 17, "start_byte": 15, "bit_index": 5, "file_name": "./voices/15.mp3", "desc": "Cẩu chuẩn bị di chuyển, chú ý quan sát xung quanh"},
+    "DB17.DBX8.6": {"db_number": 17, "start_byte": 15, "bit_index": 6, "file_name": "./voices/16.mp3", "desc": "Quá tốc độ di chuyển xe rùa"},
+    "DB17.DBX8.7": {"db_number": 17, "start_byte": 15, "bit_index": 7, "file_name": "./voices/17.mp3", "desc": "Cẩu đang bị lệch tải"},
+    "DB17.DBX9.0": {"db_number": 17, "start_byte": 16, "bit_index": 0, "file_name": "./voices/18.mp3", "desc": "Quá giới hạn di chuyển dài"},
+    "DB17.DBX9.1": {"db_number": 17, "start_byte": 16, "bit_index": 1, "file_name": "./voices/19.mp3", "desc": "Quá nhiệt buồng điện"},
+    "DB17.DBX9.2": {"db_number": 17, "start_byte": 16, "bit_index": 2, "file_name": "./voices/20.mp3", "desc": "Cảnh báo va chạm container khi di chuyển xe rùa"},
+    "DB17.DBX9.3": {"db_number": 17, "start_byte": 16, "bit_index": 3, "file_name": "./voices/23.mp3", "desc": "Tốc độ gió mạnh"},
 }
 
 
@@ -52,9 +52,9 @@ class CranePipeline:
     def __init__(self):
         self.logger = logging.getLogger("CranePipeline")
 
-        self.ip = os.getenv("PLC_IP", "192.168.1.1")
+        self.ip = os.getenv("PLC_IP", "192.168.150.103")
         self.rack = int(os.getenv("PLC_RACK", "0"))
-        self.slot = int(os.getenv("PLC_SLOT", "1"))
+        self.slot = int(os.getenv("PLC_SLOT", "2"))
         self.mock_mode = os.getenv("MOCK_PLC", "false").lower() == "true"
 
         self.client = None
@@ -235,10 +235,4 @@ class CranePipeline:
             self.play_signal(sig)
 
     def close(self):
-        try:
-            if pygame.mixer.get_init() is not None:
-                pygame.mixer.quit()
-        except Exception:
-            pass
-
         self._cleanup_client()

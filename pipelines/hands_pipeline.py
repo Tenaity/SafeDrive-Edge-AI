@@ -1,6 +1,9 @@
 import time
 import cv2
 import mediapipe as mp
+import numpy as np
+
+from utils.types import HandsOut
 
 
 class HandsPipeline:
@@ -52,7 +55,7 @@ class HandsPipeline:
             return None
         return (int((p1[0] + p2[0]) / 2), int((p1[1] + p2[1]) / 2))
 
-    def run(self, frame):
+    def run(self, frame: np.ndarray) -> HandsOut:
         if frame is None or not hasattr(frame, "shape") or frame.size == 0:
             return {
                 "hands_present": False,

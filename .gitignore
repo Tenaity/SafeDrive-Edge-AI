@@ -50,3 +50,60 @@ dist/
 *.egg-info/
 
 output/evidence/
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Logs / outputs
+logs/
+output/
+outputs/
+test_outputs/
+runs/
+tmp/
+temp/
+
+# Data / raw media
+raw_data/
+datasets/
+data/
+*.mp4
+*.avi
+*.mov
+*.mkv
+
+# Model weights
+*.pt
+*.onnx
+*.engine
+*.weights
+
+# Local env
+.env
+.env.*
+!.env.example
+!.env.template
+
+# VS Code / local tools
+.vscode/
+*.log
+# ---- Local AI agent / Claude ----
+.claude/
+
+# ---- Local detection review outputs ----
+hard_negative/
+false_phone_list.txt
+miss_phone_list.txt
+wrong_class_list.txt
+
+# ---- Runtime outputs ----
+output/
+outputs/
+test_outputs/
