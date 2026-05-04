@@ -17,12 +17,6 @@ Thumbs.db
 .vscode/
 .idea/
 
-# ---- Ultralytics / YOLO outputs ----
-runs/
-wandb/
-logs/
-*.log
-
 # ---- Model artifacts (avoid pushing binaries) ----
 # *.pt
 # *.pth
@@ -40,6 +34,12 @@ data/
 *.tar
 *.tar.gz
 *.7z
+
+# ---- Outputs / logs ----
+runs/
+wandb/
+logs/
+*.log
 
 # ---- Jupyter / notebooks ----
 .ipynb_checkpoints/
