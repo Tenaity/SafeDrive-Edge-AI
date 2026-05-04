@@ -54,7 +54,7 @@ class CranePipeline:
 
         self.ip = os.getenv("PLC_IP", "192.168.150.103")
         self.rack = int(os.getenv("PLC_RACK", "0"))
-        self.slot = int(os.getenv("PLC_SLOT", "2"))
+        self.slot = int(os.getenv("PLC_SLOT", "1"))
         self.mock_mode = os.getenv("MOCK_PLC", "false").lower() == "true"
 
         self.client = None
@@ -161,7 +161,7 @@ class CranePipeline:
                 cache_key = (db_number, start_byte)
 
                 if cache_key not in byte_cache:
-                    byte_cache[cache_key] = self.client.db_read(db_number, start_byte, 1)
+                    byte_cache[cache_key] = self.client.db_read(db_number, start_byte, 1)  # type: ignore
 
                 data = byte_cache[cache_key]
                 bit_value = get_bool(data, 0, bit_index)

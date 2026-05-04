@@ -88,7 +88,7 @@ def infer_video(model, video_path: Path, out_path: Path, conf: float):
 
     writer = cv2.VideoWriter(
         str(out_path),
-        cv2.VideoWriter_fourcc(*"mp4v"),
+        cv2.VideoWriter_fourcc(*"mp4v"),  # type: ignore
         fps,
         (w, h),
     )

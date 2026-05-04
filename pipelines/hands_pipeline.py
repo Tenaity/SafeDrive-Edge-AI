@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 import time
 import cv2
 import mediapipe as mp
@@ -16,7 +17,7 @@ class HandsPipeline:
     """
 
     def __init__(self, no_hand_time=3.0):
-        self.pose = mp.solutions.pose.Pose(
+        self.pose = mp.solutions.pose.Pose(  # type: ignore
             static_image_mode=False,
             model_complexity=1,
             smooth_landmarks=True,

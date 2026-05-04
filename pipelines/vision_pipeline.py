@@ -1,11 +1,22 @@
+# pyright: reportMissingImports=false, reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false
 import os
 import time
-import cv2
-import numpy as np
-import requests
+import cv2  # type: ignore[import]
+import numpy as np  # type: ignore[import]
+import requests  # type: ignore[import]
 
-from utils.box_utils import safe_box, box_area, intersection_area, point_distance
+from typing import Any, cast, Dict, Optional, Sequence
+
+from utils.box_utils import box_area, intersection_area
 from utils.types import VisionOut
+
+cv2 = cast(Any, cv2)
+np = cast(Any, np)
+requests = cast(Any, requests)
+
+Frame = Any
+Phone = Dict[str, Any]
+Box = Sequence[float]
 
 
 def env_float(name: str, default: float) -> float:
@@ -39,7 +50,7 @@ class VisionPipeline:
         self.last_call = 0.0
         self.CALL_EVERY_SEC = env_float("VISION_CALL_EVERY_SEC", 0.22)
 
-        self.last_out = {
+        self.last_out: VisionOut = {
             "phone": False,
             "dets": [],
             "persons": [],
@@ -74,14 +85,14 @@ class VisionPipeline:
             "hand_roi_conf_bonus=", self.HAND_ROI_CONF_BONUS,
         )
 
-    def _resize_keep_ratio(self, frame, long_side):
+    def _resize_keep_ratio(self, frame: Frame, long_side: float) -> tuple[Frame, float]:
         h, w = frame.shape[:2]
         if max(h, w) <= long_side:
             return frame, 1.0
         scale = long_side / float(max(h, w))
         nw = int(w * scale)
         nh = int(h * scale)
-        resized = cv2.resize(frame, (nw, nh), interpolation=cv2.INTER_LINEAR)
+        resized = cast(Any, cv2.resize)(frame, (nw, nh), interpolation=cast(Any, cv2.INTER_LINEAR))
         return resized, scale
 
     def _clear_output(self):
@@ -93,7 +104,7 @@ class VisionPipeline:
         }
 
 
-    def _normalize_output(self, data):
+    def _normalize_output(self, data: dict[str, Any] | None) -> Optional[VisionOut]:
         if not isinstance(data, dict):
             return None
 
@@ -115,11 +126,11 @@ class VisionPipeline:
             "phones": phones,
         }
 
-    def _request_detect(self, frame):
-        ok, jpg = cv2.imencode(
+    def _request_detect(self, frame: Frame) -> Optional[VisionOut]:
+        ok, jpg = cast(Any, cv2.imencode)(
             ".jpg",
             frame,
-            [int(cv2.IMWRITE_JPEG_QUALITY), int(self.JPEG_QUALITY)]
+            [int(cast(Any, cv2.IMWRITE_JPEG_QUALITY)), int(self.JPEG_QUALITY)]
         )
         if not ok:
             return None
@@ -130,12 +141,12 @@ class VisionPipeline:
             timeout=self.TIMEOUT_SEC,
         )
         r.raise_for_status()
-        data = r.json()
-        if not isinstance(data, dict) or not data.get("ok"):
+        data = cast(dict[str, Any], r.json())
+        if not data.get("ok"):
             return None
         return self._normalize_output(data)
 
-    def _dedup_phones(self, phones, frame_shape):
+    def _dedup_phones(self, phones: Sequence[Phone] | None, frame_shape: Sequence[int]) -> list[Phone]:
         if not phones:
             return []
 
@@ -148,7 +159,7 @@ class VisionPipeline:
             reverse=True
         )
 
-        kept = []
+        kept: list[Phone] = []
         for ph in phones_sorted:
             box = ph.get("xyxy")
             if box is None:
@@ -182,7 +193,7 @@ class VisionPipeline:
 
         return kept
 
-    def _filter_phones(self, phones):
+    def _filter_phones(self, phones: Sequence[Phone] | None) -> list[Phone]:
         if not phones:
             return []
 
@@ -191,7 +202,7 @@ class VisionPipeline:
             if float(p.get("conf", 0.0)) >= self.CLIENT_PHONE_CONF_MIN and p.get("xyxy") is not None
         ]
 
-    def _scale_hand_centers(self, hand_centers, scale):
+    def _scale_hand_centers(self, hand_centers: Optional[Sequence[tuple[float, float] | None]], scale: float) -> list[tuple[int, int]]:
         out = []
         for hc in hand_centers or []:
             if hc is None or len(hc) != 2:
@@ -204,12 +215,12 @@ class VisionPipeline:
                 continue
         return out
 
-    def _pick_best_hand_centers(self, hand_centers):
+    def _pick_best_hand_centers(self, hand_centers: Optional[Sequence[tuple[int, int]]]) -> list[tuple[int, int]]:
         if not hand_centers:
             return []
-        return hand_centers[:self.MAX_HANDS_FOR_ROI]
+        return list(hand_centers[:self.MAX_HANDS_FOR_ROI])
 
-    def _build_hand_crops(self, frame, hand_centers):
+    def _build_hand_crops(self, frame: Frame, hand_centers: Sequence[tuple[int, int]]) -> list[tuple[Frame, tuple[int, int, int, int]]]:
         h, w = frame.shape[:2]
         crops = []
 
@@ -226,25 +237,31 @@ class VisionPipeline:
             if crop is None or crop.size == 0:
                 continue
 
-            up = cv2.resize(
+            up = cast(Any, cv2.resize)(
                 crop,
                 None,
                 fx=self.HAND_ROI_UPSCALE,
                 fy=self.HAND_ROI_UPSCALE,
-                interpolation=cv2.INTER_CUBIC
+                interpolation=cast(Any, cv2.INTER_CUBIC)
             )
             crops.append((up, (x1, y1, x2, y2)))
 
         return crops
 
-    def _map_box_from_crop(self, box, crop_info, scale_x, scale_y):
+    def _map_box_from_crop(
+        self,
+        box: Sequence[float] | None,
+        crop_info: Sequence[int] | None,
+        scale_x: float,
+        scale_y: float,
+    ) -> Optional[list[float]]:
         if box is None or crop_info is None:
-            return box
+            return None
 
         try:
             x1, y1, x2, y2 = map(float, box)
         except Exception:
-            return box
+            return list(box)
 
         off_x1, off_y1, _, _ = crop_info
         return [
@@ -254,7 +271,7 @@ class VisionPipeline:
             y2 / scale_y + off_y1,
         ]
 
-    def run(self, frame: np.ndarray, hand_centers: list | None = None) -> VisionOut:
+    def run(self, frame: Frame, hand_centers: Optional[Sequence[tuple[float, float]]] = None) -> VisionOut:
         if frame is None or not hasattr(frame, "shape") or frame.size == 0:
             return self.last_out
 
@@ -271,8 +288,8 @@ class VisionPipeline:
             if main_out is None:
                 raise RuntimeError("invalid detect response")
 
-            persons = list(main_out.get("persons", []))
-            phones = list(main_out.get("phones", []))
+            persons = main_out.get("persons", [])
+            phones = main_out.get("phones", [])
 
             if len(phones) == 0 and scaled_hand_centers:
                 picked_hands = self._pick_best_hand_centers(scaled_hand_centers)
@@ -303,7 +320,7 @@ class VisionPipeline:
             phones = self._dedup_phones(phones, send_frame.shape)
             phones = self._filter_phones(phones)
 
-            dets = []
+            dets: list[Phone] = []
             for p in persons:
                 dets.append({
                     "cls": int(p.get("cls", 0)),

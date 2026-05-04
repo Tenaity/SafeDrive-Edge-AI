@@ -1,7 +1,8 @@
+# pyright: reportMissingImports=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false
 import sys
 try:
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
 except Exception:
     pass
 
@@ -12,13 +13,13 @@ import threading
 import queue
 import copy
 import math
+from typing import Any, Dict, List, Optional, Tuple
 
-import cv2
-import numpy as np
+import cv2  # type: ignore[import]
+import numpy as np  # type: ignore[import]
 
 from pipelines.vision_pipeline import VisionPipeline
 from pipelines.driver_state_pipeline import DriverStatePipeline
-from pipelines.driver_state_pipeline_v2 import DriverStatePipelineV2
 from pipelines.crane_pipeline import CranePipeline
 from pipelines.hands_pipeline import HandsPipeline
 from pipelines.phone_usage_pipeline import PhoneUsagePipeline
@@ -27,6 +28,8 @@ from policy.policy_engine import PolicyEngine
 from alerts.voice_alert import VoiceAlert
 from utils.api_logger import APILogger
 from utils.box_utils import safe_box, box_center, box_area, point_distance, expand_box, point_in_box
+from utils.threading_utils import LatestResult
+from utils.types import DEFAULT_HANDS_OUT, DEFAULT_VISION_OUT, DEFAULT_DRIVER_OUT, HandsOut, VisionOut, DriverStateOut, PhoneContextOut, PhoneUsageOut
 
 
 def load_env_file(path: str):
@@ -49,8 +52,6 @@ def load_env_file(path: str):
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_env_file(os.path.join(BASE_DIR, ".env"))
-USE_DRIVER_STATE_V2 = os.getenv("USE_DRIVER_STATE_V2", "0") == "1"
-print(f"[CFG] USE_DRIVER_STATE_V2={USE_DRIVER_STATE_V2}")
 
 
 COLOR_GREEN = (0, 255, 0)
@@ -70,13 +71,7 @@ ENABLE_EVIDENCE_SAVE = os.getenv("ENABLE_EVIDENCE_SAVE", "1") == "1"
 
 # ===== INIT PIPELINES =====
 vision = VisionPipeline()
-
-if USE_DRIVER_STATE_V2:
-    print("[SYS] Using DriverStatePipelineV2")
-    driver_state = DriverStatePipelineV2()
-else:
-    print("[SYS] Using DriverStatePipeline (legacy)")
-    driver_state = DriverStatePipeline()
+driver_state = DriverStatePipeline()
 
 crane_line = CranePipeline()
 hands_pipeline = HandsPipeline(no_hand_time=8.0)
@@ -93,12 +88,20 @@ evi_window_start = {}
 evi_window_count = {}
 os.makedirs("output/evidence", exist_ok=True)
 
+# ===== PIPELINE WORKER STOP SIGNAL =====
+stop_event = threading.Event()
+
+# ===== PIPELINE RESULT STORES (thread-safe) =====
+hands_result: LatestResult[HandsOut] = LatestResult(cast(HandsOut, dict(DEFAULT_HANDS_OUT)))  # type: ignore
+vision_result: LatestResult[VisionOut] = LatestResult(cast(VisionOut, dict(DEFAULT_VISION_OUT)))  # type: ignore
+driver_result: LatestResult[DriverStateOut] = LatestResult(cast(DriverStateOut, dict(DEFAULT_DRIVER_OUT)))  # type: ignore
+
 # ===== CAMERA STATE =====
-cap = None
-camera_thread = None
+cap: Any = None
+camera_thread: Optional[threading.Thread] = None
 camera_stop_event = threading.Event()
 camera_lock = threading.Lock()
-latest_frame = None
+latest_frame: Optional[Any] = None
 latest_frame_time = 0.0
 camera_opened = False
 
@@ -107,9 +110,9 @@ latest_crane_out = {}
 crane_lock = threading.Lock()
 
 # ===== AUDIO STATE =====
-ai_audio_q = queue.Queue()
-plc_audio_q = queue.Queue()
-pending_plc = []
+ai_audio_q: queue.Queue[Any] = queue.Queue()
+plc_audio_q: queue.Queue[Any] = queue.Queue()
+pending_plc: List[str] = []
 pending_plc_lock = threading.Lock()
 
 last_ai_audio = None
@@ -136,46 +139,8 @@ HANDS_RUN_INTERVAL_SEC = 0.10
 DRIVER_RUN_INTERVAL_SEC = 0.12
 PHONE_RUN_INTERVAL_SEC = 0.10
 
-# ===== CACHED RESULTS =====
-cached_hands_out = {
-    "hands_present": False,
-    "no_hand": False,
-    "hand_centers": [],
-    "left_wrist": None,
-    "right_wrist": None,
-    "left_elbow": None,
-    "right_elbow": None,
-    "left_shoulder": None,
-    "right_shoulder": None,
-    "left_hip": None,
-    "right_hip": None,
-    "left_knee": None,
-    "right_knee": None,
-    "left_thigh_center": None,
-    "right_thigh_center": None,
-}
-cached_driver_out = {
-    "ear": None,
-    "yaw": None,
-    "drowsy": False,
-    "distracted": False,
-    "nose_point": None,
-    "face_center": None,
-    "left_eye_center": None,
-    "right_eye_center": None,
-    "baseline_ear": None,
-    "ear_threshold_on": 0.0,
-    "ear_threshold_off": 0.0,
-    "face_ok": False,
-    "head_down": False,
-    "mar": None,
-    "yawning": False,
-    "forward_working": False,
-    "eyes_state": "unknown",
-    "eye_signal_conf": 0.0,
-    "perclos": 0.0,
-}
-cached_context_out = {
+# ===== CACHED RESULTS (phone context/usage stay in main loop) =====
+cached_context_out: PhoneContextOut = {
     "phone_contexts": [],
     "lap_zone_box": None,
     "mid_leg_zone_box": None,
@@ -191,7 +156,7 @@ cached_context_out = {
     "body_box": None,
     "face_center": None,
 }
-cached_phone_usage_out = {
+cached_phone_usage_out: PhoneUsageOut = {
     "phone_using": False,
     "best_phone_box": None,
     "score": -999,
@@ -199,8 +164,6 @@ cached_phone_usage_out = {
     "temporal_track_len": 0,
 }
 
-last_hands_run_time = 0.0
-last_driver_run_time = 0.0
 last_phone_run_time = 0.0
 
 
@@ -213,10 +176,10 @@ def open_camera_device():
         return True
 
     cam = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)
-    if cam is None or not cam.isOpened():
+    if cam is None or not cam.isOpened():  # type: ignore
         print(f"[SYS] Camera open failed, index={CAMERA_INDEX}")
         try:
-            if cam is not None:
+            if cam is not None:  # type: ignore
                 cam.release()
         except Exception:
             pass
@@ -316,7 +279,56 @@ def get_latest_frame():
         return latest_frame.copy(), latest_frame_time
 
 
-def make_driver_body_box(person_box):
+def hands_worker_fn():
+    while not stop_event.is_set():
+        frame, _ = get_latest_frame()
+        if frame is None:
+            time.sleep(0.010)
+            continue
+        out = hands_pipeline.run(frame)
+        hands_result.put(out)
+        time.sleep(HANDS_RUN_INTERVAL_SEC * 0.80)
+
+
+def vision_worker_fn():
+    while not stop_event.is_set():
+        frame, _ = get_latest_frame()
+        if frame is None:
+            time.sleep(0.010)
+            continue
+        hands = hands_result.get()
+        out = vision.run(frame, hand_centers=hands.get("hand_centers", []))
+        vision_result.put(out)
+        # VisionPipeline self-throttles with CALL_EVERY_SEC; sleep avoids spin-waiting
+        time.sleep(0.010)
+
+
+def driver_state_worker_fn():
+    while not stop_event.is_set():
+        frame, _ = get_latest_frame()
+        if frame is None:
+            time.sleep(0.010)
+            continue
+        hands = hands_result.get()
+        vis = vision_result.get()
+
+        person_box = None
+        if vis.get("persons"):
+            person_box = vis.get("persons", [{}])[0].get("xyxy")  # type: ignore
+
+        out = driver_state.run(
+            frame,
+            person_box=person_box,
+            left_shoulder=hands.get("left_shoulder"),
+            right_shoulder=hands.get("right_shoulder"),
+            left_hip=hands.get("left_hip"),
+            right_hip=hands.get("right_hip"),
+        )
+        driver_result.put(out)
+        time.sleep(DRIVER_RUN_INTERVAL_SEC * 0.80)
+
+
+def make_driver_body_box(person_box: Optional[List[float]]) -> Optional[List[float]]:
     """
     Nới vùng người lái rộng hơn:
     - rộng hơn sang hai bên để không bó upper-body
@@ -338,7 +350,13 @@ def make_driver_body_box(person_box):
     return [bx1, by1, bx2, by2]
 
 
-def filter_phone_candidates_for_usage(vision_out, hands_out, driver_out, driver_body_box, frame_shape):
+def filter_phone_candidates_for_usage(
+    vision_out: VisionOut,
+    hands_out: HandsOut,
+    driver_out: DriverStateOut,
+    driver_body_box: Optional[List[float]],
+    frame_shape: Tuple[int, int],
+) -> List[Dict[str, Any]]:
     """
     Giảm nhầm chuột/đồ vật linh tinh thành phone bằng ngữ cảnh:
     - ưu tiên box gần tay
@@ -346,9 +364,12 @@ def filter_phone_candidates_for_usage(vision_out, hands_out, driver_out, driver_
     - ưu tiên box nằm trong driver body box đã nới
     - loại bớt box nhỏ, xa tay, xa mặt, nằm ngoài ngữ cảnh lái
     """
-    phones = vision_out.get("phones", []) if isinstance(vision_out, dict) else []
+    phones = vision_out.get("phones", [])
     if not phones:
         return []
+
+    fh, fw = frame_shape[:2]
+    frame_diag = math.hypot(fw, fh)
 
     fh, fw = frame_shape[:2]
     frame_diag = math.hypot(fw, fh)
@@ -419,7 +440,7 @@ def filter_phone_candidates_for_usage(vision_out, hands_out, driver_out, driver_
     return [p["xyxy"] for p in filtered if p.get("xyxy") is not None]
 
 
-def is_box_kept(box, kept_boxes, tol=10.0):
+def is_box_kept(box: Optional[List[float]], kept_boxes: List[Any], tol: float = 10.0) -> bool:
     c1 = box_center(box)
     if c1 is None:
         return False
@@ -432,7 +453,7 @@ def is_box_kept(box, kept_boxes, tol=10.0):
     return False
 
 
-def draw_yaw_vector(frame, nose_point, yaw_deg, threshold=15.0):
+def draw_yaw_vector(frame: Any, nose_point: Optional[Tuple[float, float]], yaw_deg: Optional[float], threshold: float = 15.0) -> None:
     if nose_point is None or yaw_deg is None:
         return
 
@@ -442,30 +463,30 @@ def draw_yaw_vector(frame, nose_point, yaw_deg, threshold=15.0):
     end_y = int(nose_point[1])
 
     color = COLOR_GREEN if abs(yaw_deg) < threshold else COLOR_RED
-    cv2.arrowedLine(frame, nose_point, (end_x, end_y), color, 2, tipLength=0.3)
+    cv2.arrowedLine(frame, (int(nose_point[0]), int(nose_point[1])), (end_x, end_y), color, 2, tipLength=0.3)
 
 
-def draw_eye_indicator(frame, left_eye_center, right_eye_center, ear, threshold=0.25):
+def draw_eye_indicator(frame: Any, left_eye_center: Optional[Tuple[float, float]], right_eye_center: Optional[Tuple[float, float]], ear: Optional[float], threshold: float = 0.25) -> None:
     if ear is None or left_eye_center is None or right_eye_center is None:
         return
 
     if ear > threshold:
-        cv2.circle(frame, left_eye_center, 4, COLOR_WHITE, -1)
-        cv2.circle(frame, right_eye_center, 4, COLOR_WHITE, -1)
+        cv2.circle(frame, (int(left_eye_center[0]), int(left_eye_center[1])), 4, COLOR_WHITE, -1)
+        cv2.circle(frame, (int(right_eye_center[0]), int(right_eye_center[1])), 4, COLOR_WHITE, -1)
 
 
-def draw_overlay(frame, vision_out, driver_out, crane_out, alert, phone_usage_out):
+def draw_overlay(frame: Any, vision_out: VisionOut, driver_out: DriverStateOut, crane_out: Dict[str, Any], alert: Any, phone_usage_out: PhoneUsageOut) -> None:
     y = 30
     cv2.putText(
-        frame, f"ALERT: {alert.name}",
+        frame, f"ALERT: {alert}",
         (10, y),
         cv2.FONT_HERSHEY_SIMPLEX, 0.8,
-        COLOR_YELLOW if alert.name != "NONE" else COLOR_GREEN,
+        COLOR_YELLOW if alert != "NONE" else COLOR_GREEN,
         2
     )
 
     y += 30
-    has_plc_signal = bool(crane_out) if isinstance(crane_out, dict) else False
+    has_plc_signal = bool(crane_out)
     status_text = "PLC ACTIVE" if has_plc_signal else "FREE"
     status_color = COLOR_RED if has_plc_signal else COLOR_GREEN
     cv2.putText(frame, f"CRANE: {status_text}", (10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, status_color, 2)
@@ -473,7 +494,7 @@ def draw_overlay(frame, vision_out, driver_out, crane_out, alert, phone_usage_ou
     y += 30
     if driver_out.get("yaw") is not None:
         cv2.putText(
-            frame, f"Yaw: {driver_out['yaw']} deg",
+            frame, f"Yaw: {driver_out.get('yaw')} deg",
             (10, y),
             cv2.FONT_HERSHEY_SIMPLEX, 0.6,
             COLOR_WHITE, 1
@@ -482,7 +503,7 @@ def draw_overlay(frame, vision_out, driver_out, crane_out, alert, phone_usage_ou
     y += 25
     if driver_out.get("ear") is not None:
         cv2.putText(
-            frame, f"EAR: {driver_out['ear']}",
+            frame, f"EAR: {driver_out.get('ear')}",
             (10, y),
             cv2.FONT_HERSHEY_SIMPLEX, 0.6,
             COLOR_WHITE, 1
@@ -535,14 +556,14 @@ def plc_worker():
 
     while True:
         try:
-            data = crane_line.run() if crane_line is not None else {}
+            data = crane_line.run()
         except Exception as e:
             data = {"signals": {}, "error": str(e)}
 
         with crane_lock:
             latest_crane_out = copy.deepcopy(data)
 
-        if isinstance(data, dict) and "error" in data:
+        if "error" in data:
             time.sleep(0.5)
         else:
             time.sleep(0.2)
@@ -562,14 +583,14 @@ def audio_worker():
                 print("AUDIO WORKER GOT AI:", item["alert"].name)
 
                 try:
-                    if crane_line is not None and hasattr(crane_line, "plc_channel"):
-                        crane_line.plc_channel.stop()
+                    if hasattr(crane_line, "plc_channel"):
+                        if hasattr(crane_line, "plc_channel") and crane_line.plc_channel is not None:
+                            crane_line.plc_channel.stop()
                 except Exception:
                     pass
 
                 try:
-                    if voice_alert is not None:
-                        voice_alert.stop()
+                    voice_alert.stop()
                 except Exception:
                     pass
 
@@ -586,8 +607,7 @@ def audio_worker():
                     sig = pending_plc.pop(0)
 
             if sig is not None:
-                if crane_line is not None:
-                    crane_line.play_signal(sig)
+                crane_line.play_signal(sig)
                 continue
 
             try:
@@ -595,10 +615,7 @@ def audio_worker():
             except queue.Empty:
                 continue
 
-            if item is None:
-                continue
-
-            if item.get("kind") == "PLC" and crane_line is not None:
+            if item.get("kind") == "PLC":
                 new_items = crane_line.flatten_signals(item["crane_out"])
                 with pending_plc_lock:
                     pending_plc.clear()
@@ -623,7 +640,7 @@ def should_save_evidence(alert_name: str, now: float) -> bool:
     return False
 
 
-def log_debug_once_per_sec(vision_out, driver_out, hands_out, crane_out, alert, phone_usage_out):
+def log_debug_once_per_sec(vision_out: VisionOut, driver_out: DriverStateOut, hands_out: HandsOut, crane_out: Dict[str, Any], alert: Any, phone_usage_out: PhoneUsageOut) -> None:
     global last_dbg_log_time
 
     if not ENABLE_DEBUG_LOGS:
@@ -638,7 +655,7 @@ def log_debug_once_per_sec(vision_out, driver_out, hands_out, crane_out, alert, 
     try:
         print(
             "DBG",
-            "alert=", alert.name,
+            "alert=", alert,
             "phone_raw=", len(vision_out.get("phones", [])),
             "phone_using=", phone_usage_out.get("phone_using"),
             "phone_score=", phone_usage_out.get("score"),
@@ -647,13 +664,13 @@ def log_debug_once_per_sec(vision_out, driver_out, hands_out, crane_out, alert, 
             "head_down=", driver_out.get("head_down"),
             "forward_working=", driver_out.get("forward_working"),
             "face_ok=", driver_out.get("face_ok"),
-            "no_hand=", hands_out.get("no_hand") if isinstance(hands_out, dict) else None,
+            "no_hand=", hands_out.get("no_hand"),
         )
     except Exception:
         pass
 
 
-def log_vision_once_per_sec(vision_out):
+def log_vision_once_per_sec(vision_out: VisionOut) -> None:
     global last_dets_log_time
 
     if not ENABLE_DEBUG_LOGS:
@@ -672,7 +689,7 @@ def log_vision_once_per_sec(vision_out):
     )
 
 
-def log_driver_once_per_sec(driver_out):
+def log_driver_once_per_sec(driver_out: DriverStateOut) -> None:
     global last_drv_log_time
 
     if not ENABLE_DEBUG_LOGS:
@@ -704,14 +721,21 @@ if not start_camera_system():
     print("[SYS] Cannot start camera, exiting main.")
     raise SystemExit(1)
 
+_pipeline_threads = [
+    threading.Thread(target=hands_worker_fn, daemon=True, name="hands_worker"),
+    threading.Thread(target=vision_worker_fn, daemon=True, name="vision_worker"),
+    threading.Thread(target=driver_state_worker_fn, daemon=True, name="driver_worker"),
+]
+for _t in _pipeline_threads:
+    _t.start()
+print("[SYS] Pipeline worker threads started")
+
 try:
     while True:
         with crane_lock:
             crane_raw = copy.deepcopy(latest_crane_out)
 
-        crane_out = {}
-        if isinstance(crane_raw, dict):
-            crane_out = crane_raw.get("signals", {})
+        crane_out = crane_raw.get("signals", {})
 
         frame, frame_ts = get_latest_frame()
         if frame is None:
@@ -725,36 +749,19 @@ try:
 
         now = time.time()
 
-        # CHẠY HANDS TRƯỚC để vision có hand ROI
-        if (now - last_hands_run_time) >= HANDS_RUN_INTERVAL_SEC:
-            cached_hands_out = hands_pipeline.run(frame)
-            last_hands_run_time = now
-        hands_out = cached_hands_out
+        # Read latest results from pipeline workers
+        hands_out = hands_result.get()
+        vision_out = vision_result.get()
+        driver_out = driver_result.get()
 
-        vision_out = vision.run(
-            frame,
-            hand_centers=hands_out.get("hand_centers", [])
-        )
         log_vision_once_per_sec(vision_out)
+        log_driver_once_per_sec(driver_out)
 
         person_box = None
         if vision_out.get("persons"):
-            person_box = vision_out["persons"][0].get("xyxy")
+            person_box = vision_out.get("persons", [{}])[0].get("xyxy")  # type: ignore
 
         driver_body_box = make_driver_body_box(person_box)
-
-        if (now - last_driver_run_time) >= DRIVER_RUN_INTERVAL_SEC:
-            cached_driver_out = driver_state.run(
-                frame,
-                person_box=person_box,
-                left_shoulder=hands_out.get("left_shoulder"),
-                right_shoulder=hands_out.get("right_shoulder"),
-                left_hip=hands_out.get("left_hip"),
-                right_hip=hands_out.get("right_hip"),
-            )
-            last_driver_run_time = now
-        driver_out = cached_driver_out
-        log_driver_once_per_sec(driver_out)
 
         filtered_phone_candidates = filter_phone_candidates_for_usage(
             vision_out=vision_out,
@@ -917,7 +924,7 @@ try:
                 2
             )
 
-        if USE_DRIVER_STATE_V2 and SHOW_DEBUG_BOXES:
+        if SHOW_DEBUG_BOXES:
             face_box = driver_out.get("face_box")
             if face_box is not None:
                 x1, y1, x2, y2 = map(int, face_box)
@@ -965,47 +972,47 @@ try:
             time.sleep(0.001)
 
 finally:
+    stop_event.set()
+    for _t in _pipeline_threads:
+        try:
+            _t.join(timeout=3.0)
+        except Exception:
+            pass
+
     try:
-        if voice_alert is not None:
-            voice_alert.close()
+        voice_alert.close()
     except Exception:
         pass
 
     try:
-        if hands_pipeline is not None:
-            hands_pipeline.close()
+        hands_pipeline.close()
     except Exception:
         pass
 
     try:
-        if driver_state is not None:
-            driver_state.close()
+        driver_state.close()
     except Exception:
         pass
 
     try:
-        if crane_line is not None:
-            crane_line.close()
+        crane_line.close()
     except Exception:
         pass
 
     try:
-        if phone_usage_pipeline is not None:
-            phone_usage_pipeline.reset()
+        phone_usage_pipeline.reset()
     except Exception:
         pass
 
     try:
-        if vision is not None:
-            vision.close()
+        vision.close()
     except Exception:
         pass
 
     try:
         import pygame
         pygame.mixer.stop()
-        if pygame.mixer.get_init() is not None:
-            pygame.mixer.quit()
+        pygame.mixer.quit()
     except Exception:
         pass
 

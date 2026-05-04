@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 from pathlib import Path
 import os
 import cv2
@@ -29,7 +30,7 @@ def env_bool(name: str, default: bool) -> bool:
     return val in {"1", "true", "yes", "on"}
 
 
-class FaceDetectorV2:
+class FaceDetector:
     """
     Offline-safe face detector:
     - chỉ load model local
@@ -41,12 +42,13 @@ class FaceDetectorV2:
 
     def __init__(self, model_path=None):
         self.backend = "none"
-        self.score_threshold = env_float("DRIVER_STATE_V2_FACE_SCORE_THRESHOLD", 0.50)
-        self.allow_haar = env_bool("DRIVER_STATE_V2_ALLOW_HAAR_FALLBACK", True)
-        self.prefer_backend = env_str("DRIVER_STATE_V2_BACKEND", "auto").lower()
-        self.ov_device = env_str("DRIVER_STATE_V2_OPENVINO_DEVICE", "CPU")
+        self.score_threshold = env_float("DRIVER_STATE_FACE_SCORE_THRESHOLD", 0.50)
+        self.allow_haar = env_bool("DRIVER_STATE_ALLOW_HAAR_FALLBACK", True)
+        self.prefer_backend = env_str("DRIVER_STATE_BACKEND", "auto").lower()
+        self.ov_device = env_str("DRIVER_STATE_OPENVINO_DEVICE", "CPU")
 
-        model_dir = base_dir / "models" / "driver_state_v2" / "face_detector"
+        _base = Path(__file__).resolve().parent.parent
+        model_dir = _base / "models" / "driver_state" / "face_detector"
         self.xml_path = model_dir / "face_detector.xml"
         self.bin_path = model_dir / "face_detector.bin"
         self.onnx_path = model_dir / "face_detector.onnx"
@@ -89,7 +91,7 @@ class FaceDetectorV2:
             if item == "haar" and self._try_init_haar():
                 return
 
-        print("[FaceDetectorV2] No backend available")
+        print("[FaceDetector] No backend available")
 
     def _try_init_openvino(self):
         if Core is None:
@@ -103,10 +105,10 @@ class FaceDetectorV2:
             self.ov_input = self.ov_compiled_model.input(0)
             self.ov_output = self.ov_compiled_model.output(0)
             self.backend = "openvino"
-            print(f"[FaceDetectorV2] Using OpenVINO IR: {self.xml_path.name} on {self.ov_device}")
+            print(f"[FaceDetector] Using OpenVINO IR: {self.xml_path.name} on {self.ov_device}")
             return True
         except Exception as e:
-            print(f"[FaceDetectorV2] OpenVINO init failed: {e}")
+            print(f"[FaceDetector] OpenVINO init failed: {e}")
             self.ov_core = None
             self.ov_compiled_model = None
             return False
@@ -123,10 +125,10 @@ class FaceDetectorV2:
             )
             self.ort_input_name = self.ort_session.get_inputs()[0].name
             self.backend = "onnx"
-            print(f"[FaceDetectorV2] Using ONNX Runtime: {self.onnx_path.name}")
+            print(f"[FaceDetector] Using ONNX Runtime: {self.onnx_path.name}")
             return True
         except Exception as e:
-            print(f"[FaceDetectorV2] ONNX init failed: {e}")
+            print(f"[FaceDetector] ONNX init failed: {e}")
             self.ort_session = None
             self.ort_input_name = None
             return False
@@ -136,15 +138,15 @@ class FaceDetectorV2:
             return False
         try:
             self.haar = cv2.CascadeClassifier(
-                cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+                cv2.data.haarcascades + "haarcascade_frontalface_default.xml"  # type: ignore
             )
             if self.haar.empty():
                 return False
             self.backend = "haar"
-            print("[FaceDetectorV2] Using OpenCV Haar fallback")
+            print("[FaceDetector] Using OpenCV Haar fallback")
             return True
         except Exception as e:
-            print(f"[FaceDetectorV2] Haar init failed: {e}")
+            print(f"[FaceDetector] Haar init failed: {e}")
             self.haar = None
             return False
 
@@ -195,7 +197,7 @@ class FaceDetectorV2:
         gray = cv2.cvtColor(small, cv2.COLOR_BGR2GRAY)
         min_face = max(32, int(self.HAAR_MIN_FACE * scale))
 
-        faces = self.haar.detectMultiScale(
+        faces = self.haar.detectMultiScale(  # type: ignore
             gray,
             scaleFactor=1.1,
             minNeighbors=5,

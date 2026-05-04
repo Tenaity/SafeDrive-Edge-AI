@@ -12,15 +12,15 @@ def ensure_dir(path: str):
 
 
 def copy_images_from_class_dirs(src_root: str, out_dir: str, class_dirs: list[str], max_per_class: int = 0):
-    src_root = Path(src_root)
-    out_dir = Path(out_dir)
+    src_root_path = Path(src_root)
+    out_dir_path = Path(out_dir)
 
-    ensure_dir(str(out_dir))
+    ensure_dir(str(out_dir_path))
 
     total_copied = 0
 
     for cls_name in class_dirs:
-        cls_dir = src_root / cls_name
+        cls_dir = src_root_path / cls_name
         if not cls_dir.exists():
             print(f"[WARN] Không thấy folder: {cls_dir}")
             continue
@@ -34,7 +34,7 @@ def copy_images_from_class_dirs(src_root: str, out_dir: str, class_dirs: list[st
         copied_this_class = 0
         for idx, img_path in enumerate(images):
             dst_name = f"statefarm_{cls_name}_{idx:06d}{img_path.suffix.lower()}"
-            dst_path = out_dir / dst_name
+            dst_path = out_dir_path / dst_name
             shutil.copy2(img_path, dst_path)
             copied_this_class += 1
             total_copied += 1

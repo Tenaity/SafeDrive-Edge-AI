@@ -1,16 +1,17 @@
 @echo off
 setlocal EnableExtensions
 
-cd /d "%~dp0"
+set "ROOT=%~dp0.."
+cd /d "%ROOT%"
 
 if not exist logs mkdir logs
 
-set "PYTHON_EXE=%~dp0.venv\Scripts\python.exe"
-set "PYTHONW_EXE=%~dp0.venv\Scripts\pythonw.exe"
-set "YOLO_SCRIPT=%~dp0yolo_server.py"
-set "LAUNCHER_SCRIPT=%~dp0launcher.py"
-set "YOLO_LOG=%~dp0logs\yolo.log"
-set "LAUNCHER_LOG=%~dp0logs\launcher.log"
+set "PYTHON_EXE=%ROOT%\.venv\Scripts\python.exe"
+set "PYTHONW_EXE=%ROOT%\.venv\Scripts\pythonw.exe"
+set "YOLO_SCRIPT=%ROOT%\yolo_server.py"
+set "LAUNCHER_SCRIPT=%ROOT%\launcher.py"
+set "YOLO_LOG=%ROOT%\logs\yolo.log"
+set "LAUNCHER_LOG=%ROOT%\logs\launcher.log"
 
 set PYTHONUTF8=1
 set PYTHONIOENCODING=utf-8

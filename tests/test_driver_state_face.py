@@ -6,7 +6,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from pipelines.driver_state_pipeline_v2 import DriverStatePipelineV2
+from pipelines.driver_state_pipeline import DriverStatePipeline
 
 
 def main():
@@ -14,7 +14,7 @@ def main():
     if not cap.isOpened():
         raise RuntimeError("Không mở được camera")
 
-    pipe = DriverStatePipelineV2()
+    pipe = DriverStatePipeline()
     backend = getattr(pipe.face_detector, "backend", "unknown")
 
     try:
@@ -42,7 +42,7 @@ def main():
             cv2.putText(frame, text4, (20, 120), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
             cv2.putText(frame, text5, (20, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
 
-            cv2.imshow("driver_state_v2_test", frame)
+            cv2.imshow("driver_state_test", frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 

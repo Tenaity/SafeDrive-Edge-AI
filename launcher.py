@@ -3,6 +3,7 @@ import time
 import signal
 import socket
 import subprocess
+from typing import Dict, Any
 from dotenv import load_dotenv
 
 try:
@@ -97,7 +98,7 @@ def ensure_client() -> bool:
 
 
 def read_start_bit() -> bool:
-    data = client.db_read(START_DB_NUMBER, START_BYTE, 1)
+    data = client.db_read(START_DB_NUMBER, START_BYTE, 1)  # type: ignore
     return get_bool(data, 0, START_BIT)
 
 
@@ -118,11 +119,11 @@ def start_main():
     print(f"[LAUNCHER] MAIN_SCRIPT={MAIN_SCRIPT}")
     print(f"[LAUNCHER] PYTHON_EXE={python_exe}")
 
-    kwargs = {"cwd": BASE_DIR}
+    kwargs: Dict[str, Any] = {"cwd": BASE_DIR}
     if os.name == "nt":
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
-    main_proc = subprocess.Popen(
+    main_proc = subprocess.Popen(  # type: ignore
         [python_exe, MAIN_SCRIPT],
         **kwargs
     )
@@ -137,16 +138,18 @@ def stop_main():
 
     print("[LAUNCHER] Stopping main.py")
     try:
-        if os.name == "nt":
-            main_proc.terminate()
-        else:
-            main_proc.send_signal(signal.SIGTERM)
+        if main_proc is not None:
+            if os.name == "nt":
+                main_proc.terminate()
+            else:
+                main_proc.send_signal(signal.SIGTERM)
 
-        main_proc.wait(timeout=5)
+            main_proc.wait(timeout=5)
     except Exception as e:
         print(f"[LAUNCHER] Graceful stop failed: {e}")
         try:
-            main_proc.kill()
+            if main_proc is not None:
+                main_proc.kill()
         except Exception:
             pass
     finally:

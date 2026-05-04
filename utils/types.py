@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import Any, TypedDict
 
 
 class HandsOut(TypedDict, total=False):
@@ -21,20 +21,23 @@ class HandsOut(TypedDict, total=False):
 
 class VisionOut(TypedDict, total=False):
     phone: bool
-    dets: list
-    persons: list
-    phones: list
+    dets: list[dict[str, Any]]
+    persons: list[dict[str, Any]]
+    phones: list[dict[str, Any]]
 
 
 class DriverStateOut(TypedDict, total=False):
     ear: float | None
     yaw: float | None
+    pitch: float | None
+    roll: float | None
     drowsy: bool
     distracted: bool
     nose_point: tuple | None
     face_center: tuple | None
     left_eye_center: tuple | None
     right_eye_center: tuple | None
+    face_box: list | None
     baseline_ear: float | None
     ear_threshold_on: float
     ear_threshold_off: float
