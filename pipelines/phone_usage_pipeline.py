@@ -30,7 +30,7 @@ class PhoneUsagePipeline:
         self.face_phone_dist_ratio = 0.42
         self.thigh_phone_dist_ratio = 0.40
 
-        self.use_score_threshold = 7
+        self.use_score_threshold = 5  # lowered from 7 to catch more phone scenarios
 
 
     def _phone_in_driver_zone(self, phone_box, person_box):

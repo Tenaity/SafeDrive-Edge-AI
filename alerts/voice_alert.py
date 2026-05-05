@@ -84,17 +84,23 @@ class VoiceAlert:
             if driver.get("drowsy") and self._can_speak("drowsy"):
                 self._play_file("21.mp3")
                 return
-            
+
             if driver.get("yawning") and self._can_speak("yawning"):
-                    self._play_file("21.mp3")
-                    return
-                
+                self._play_file("21.mp3")
+                return
+
             if driver.get("distracted") and self._can_speak("distracted"):
                 self._play_file("21.mp3")
                 return
 
+            # Fallback: HIGH triggered but specific cooldowns all active
+            if self._can_speak("high_fallback"):
+                self._play_file("21.mp3")
+                return
+
         if alert_name == "PHONE":
-            if vision.get("phone") and self._can_speak("phone"):
+            # policy already confirmed phone_using=True, no need to re-check vision["phone"]
+            if self._can_speak("phone"):
                 self._play_file("22.mp3")
                 return
 

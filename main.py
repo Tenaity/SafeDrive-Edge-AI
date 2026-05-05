@@ -809,7 +809,9 @@ try:
 
         if alert.name != "NONE":
             repeat_sec = AI_REPEAT_SEC
-            if alert.name == "MEDIUM":
+            if alert.name == "HIGH":
+                repeat_sec = 5.0   # repeat drowsy/yawning alerts every 5s
+            elif alert.name == "MEDIUM":
                 repeat_sec = 30.0
 
             if (alert.name != last_ai_audio) or ((now - last_ai_audio_time) >= repeat_sec):

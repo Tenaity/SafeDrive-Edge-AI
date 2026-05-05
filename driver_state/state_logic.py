@@ -3,15 +3,15 @@ from collections import deque
 
 class DriverStateLogic:
     # Blink score thresholds (0.0 = fully open, 1.0 = fully closed)
-    BLINK_CLOSED_THRESHOLD = 0.35
-    BLINK_OPEN_THRESHOLD = 0.25
+    BLINK_CLOSED_THRESHOLD = 0.25  # lowered from 0.35 for better sensitivity
+    BLINK_OPEN_THRESHOLD = 0.15   # lowered from 0.25 to maintain hysteresis gap
 
     # Frames of continuous closure to trigger / clear drowsy
-    EAR_CONSEC_FRAMES_ON = 11
-    EAR_CONSEC_FRAMES_OFF = 8
+    EAR_CONSEC_FRAMES_ON = 5   # ~1.4s at 0.28s/frame, was 11 (~3s)
+    EAR_CONSEC_FRAMES_OFF = 4  # faster recovery, was 8
 
-    MAR_THRESHOLD = 0.46
-    PERCLOS_WINDOW = 90  # frames (~3s at 30fps)
+    MAR_THRESHOLD = 0.38  # lowered from 0.46 for better yawn sensitivity
+    PERCLOS_WINDOW = 90   # frames (~3s at 30fps)
 
     def __init__(self):
         self._closed_counter = 0
