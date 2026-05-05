@@ -27,7 +27,7 @@ class SignalConfig(TypedDict):
 
 
 signal_map: Dict[str, SignalConfig] = {
-    "DB17.DBX7.0": {"db_number": 17, "start_byte": 9, "bit_index": 0, "file_name": "./voices/1.mp3", "desc": "Cẩu di chuyển qua hố cáp"},
+    "DB17.DBX7.0": {"db_number": 17, "start_byte": 14 "bit_index": 0, "file_name": "./voices/1.mp3", "desc": "Cẩu di chuyển qua hố cáp"},
     "DB17.DBX7.1": {"db_number": 17, "start_byte": 14, "bit_index": 1, "file_name": "./voices/2.mp3", "desc": "Khung chụp đang nâng"},
     "DB17.DBX7.2": {"db_number": 17, "start_byte": 14, "bit_index": 2, "file_name": "./voices/3.mp3", "desc": "Khung chụp đang hạ"},
     "DB17.DBX7.3": {"db_number": 17, "start_byte": 14, "bit_index": 3, "file_name": "./voices/4.mp3", "desc": "Đang nâng tải nặng"},
