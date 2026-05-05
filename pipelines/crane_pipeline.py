@@ -1,6 +1,8 @@
 import logging
 import os
 import time
+import subprocess
+import platform
 from typing import Dict, TypedDict
 
 from dotenv import load_dotenv
@@ -25,7 +27,7 @@ class SignalConfig(TypedDict):
 
 
 signal_map: Dict[str, SignalConfig] = {
-    "DB17.DBX7.0": {"db_number": 17, "start_byte": 14, "bit_index": 0, "file_name": "./voices/1.mp3", "desc": "Cẩu di chuyển qua hố cáp"},
+    "DB17.DBX7.0": {"db_number": 17, "start_byte": 9, "bit_index": 0, "file_name": "./voices/1.mp3", "desc": "Cẩu di chuyển qua hố cáp"},
     "DB17.DBX7.1": {"db_number": 17, "start_byte": 14, "bit_index": 1, "file_name": "./voices/2.mp3", "desc": "Khung chụp đang nâng"},
     "DB17.DBX7.2": {"db_number": 17, "start_byte": 14, "bit_index": 2, "file_name": "./voices/3.mp3", "desc": "Khung chụp đang hạ"},
     "DB17.DBX7.3": {"db_number": 17, "start_byte": 14, "bit_index": 3, "file_name": "./voices/4.mp3", "desc": "Đang nâng tải nặng"},
@@ -61,6 +63,9 @@ class CranePipeline:
         self.connected = False
         self.last_connect_attempt = 0.0
         self.reconnect_interval = 5.0
+        self.base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.log_path = os.path.join(self.base_dir, "logs", "plc_voice.log")
+        os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
 
         self._ensure_audio()
 
@@ -72,13 +77,48 @@ class CranePipeline:
             self.connect()
 
     def _ensure_audio(self):
+        if not hasattr(pygame, "mixer"):
+            self._log_plc_event("pygame mixer module unavailable")
+            self.plc_channel = None
+            return
+
         try:
             if pygame.mixer.get_init() is None:
+                pygame.mixer.pre_init(44100, -16, 2, 2048)
                 pygame.mixer.init()
-            self.plc_channel = pygame.mixer.Channel(1)
+            self.plc_channel = pygame.mixer.find_channel(True)
+            if self.plc_channel is not None:
+                self.plc_channel.set_volume(1.0)
+            self._log_plc_event(f"PLC audio channel set to {self.plc_channel}")
         except Exception as e:
             self.logger.error(f"Failed to initialize pygame mixer: {e}")
+            self._log_plc_event(f"Failed to initialize pygame mixer: {e}")
             self.plc_channel = None
+
+    def _play_with_system_audio(self, file_path: str):
+        if platform.system().lower() != "windows":
+            self._log_plc_event(f"System audio fallback unsupported on {platform.system()}")
+            return
+
+        try:
+            escaped_path = file_path.replace("'", "''")
+            ps_cmd = (
+                "$player = New-Object -ComObject WMPlayer.OCX.7; "
+                f"$player.URL = '{escaped_path}'; "
+                "$player.controls.play(); "
+                "while ($player.playState -eq 3) { Start-Sleep -Milliseconds 100 }"
+            )
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps_cmd], capture_output=True, text=True, timeout=60)
+            self._log_plc_event(f"Played via PowerShell fallback: {file_path}")
+            return
+        except Exception as e:
+            self._log_plc_event(f"PowerShell audio fallback failed: {e}")
+
+        try:
+            os.startfile(file_path)
+            self._log_plc_event(f"Opened file with default application: {file_path}")
+        except Exception as e:
+            self._log_plc_event(f"os.startfile fallback failed: {e}")
 
     def _cleanup_client(self):
         if self.client:
@@ -92,6 +132,13 @@ class CranePipeline:
                 pass
         self.client = None
         self.connected = False
+
+    def _log_plc_event(self, message: str):
+        try:
+            with open(self.log_path, "a", encoding="utf-8") as f:
+                f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} {message}\n")
+        except Exception:
+            pass
 
     def connect(self):
         if self.mock_mode:
@@ -209,18 +256,32 @@ class CranePipeline:
     def play_signal(self, signal):
         self._ensure_audio()
 
-        if self.plc_channel is None:
-            return
-
         file_name = signal.get("file_name", "")
         desc = signal.get("desc", "")
 
         if not file_name:
             return
 
+        file_path = file_name
+        if not os.path.isabs(file_path):
+            file_path = os.path.join(self.base_dir, file_path)
+
+        if not os.path.exists(file_path):
+            self.logger.error(f"PLC audio file not found: {file_path}")
+            self._log_plc_event(f"PLC audio file not found: {file_path}")
+            return
+
         try:
-            self.logger.info(f"Playing alert: {desc} from {file_name}")
-            snd = pygame.mixer.Sound(file_name)
+            self.logger.info(f"Playing alert: {desc} from {file_path}")
+            self._log_plc_event(f"Playing alert: {desc} from {file_path}")
+
+            if self.plc_channel is None:
+                self._log_plc_event("PLC audio channel unavailable, using system fallback")
+                self._play_with_system_audio(file_path)
+                return
+
+            snd = pygame.mixer.Sound(file_path)
+            snd.set_volume(1.0)
             self.plc_channel.play(snd)
 
             while self.plc_channel.get_busy():
@@ -228,6 +289,8 @@ class CranePipeline:
 
         except Exception as e:
             self.logger.error(f"Failed to play audio {file_name}: {e}")
+            self._log_plc_event(f"Failed to play audio {file_name}: {e}")
+            self._play_with_system_audio(file_path)
 
     def voice_alert(self, signals: Dict[str, SignalConfig]):
         items = self.flatten_signals(signals)

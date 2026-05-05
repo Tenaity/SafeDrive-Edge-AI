@@ -10,7 +10,7 @@ class DriverStateLogic:
     EAR_CONSEC_FRAMES_ON = 5   # ~1.4s at 0.28s/frame, was 11 (~3s)
     EAR_CONSEC_FRAMES_OFF = 4  # faster recovery, was 8
 
-    MAR_THRESHOLD = 0.38  # lowered from 0.46 for better yawn sensitivity
+    MAR_THRESHOLD = 0.25  # lowered for better yawn sensitivity
     PERCLOS_WINDOW = 90   # frames (~3s at 30fps)
 
     def __init__(self):

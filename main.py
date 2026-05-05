@@ -13,7 +13,7 @@ import threading
 import queue
 import copy
 import math
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 import cv2  # type: ignore[import]
 import numpy as np  # type: ignore[import]
@@ -175,26 +175,37 @@ def open_camera_device():
     if cap is not None:
         return True
 
-    cam = cv2.VideoCapture(CAMERA_INDEX, cv2.CAP_DSHOW)
-    if cam is None or not cam.isOpened():  # type: ignore
-        print(f"[SYS] Camera open failed, index={CAMERA_INDEX}")
-        try:
-            if cam is not None:  # type: ignore
-                cam.release()
-        except Exception:
-            pass
-        cap = None
-        camera_opened = False
-        return False
+    # Try multiple camera indices if the default fails
+    indices_to_try = [CAMERA_INDEX]
+    if CAMERA_INDEX != 0:
+        indices_to_try.insert(0, 0)  # Try 0 first if not already
+    indices_to_try.extend([i for i in range(5) if i not in indices_to_try])
 
-    cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    for idx in indices_to_try:
+        print(f"[SYS] Trying camera index {idx}")
+        cam = cv2.VideoCapture(idx, cv2.CAP_DSHOW)
+        if cam is None or not cam.isOpened():
+            print(f"[SYS] Camera open failed, index={idx}")
+            try:
+                if cam is not None:
+                    cam.release()
+            except Exception:
+                pass
+            continue
 
-    cap = cam
-    camera_opened = True
-    print(f"[SYS] Camera opened, index={CAMERA_INDEX}")
-    return True
+        cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+        cam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+        cam.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        cap = cam
+        camera_opened = True
+        print(f"[SYS] Camera opened, index={idx}")
+        return True
+
+    print("[SYS] All camera indices failed")
+    cap = None
+    camera_opened = False
+    return False
 
 
 def close_camera_device():

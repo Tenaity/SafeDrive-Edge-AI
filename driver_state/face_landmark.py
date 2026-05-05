@@ -75,7 +75,7 @@ class FaceLandmark:
                 output_face_blendshapes=True,
                 num_faces=1,
                 min_face_detection_confidence=0.4,
-                min_face_presence_score=0.4,
+                min_face_presence_confidence=0.4,
                 min_tracking_confidence=0.4,
             )
             self._landmarker = _mp_vision.FaceLandmarker.create_from_options(opts)  # type: ignore

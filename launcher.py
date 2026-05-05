@@ -72,6 +72,8 @@ def cleanup_client():
 
 
 def ensure_client() -> bool:
+    if os.getenv("MOCK_PLC", "false").lower() == "true":
+        return True  # Mock mode, no real connection needed
     global client
 
     if client is not None:
@@ -98,6 +100,8 @@ def ensure_client() -> bool:
 
 
 def read_start_bit() -> bool:
+    if os.getenv("MOCK_PLC", "false").lower() == "true":
+        return True  # Always start in mock mode
     data = client.db_read(START_DB_NUMBER, START_BYTE, 1)  # type: ignore
     return get_bool(data, 0, START_BIT)
 
@@ -119,7 +123,10 @@ def start_main():
     print(f"[LAUNCHER] MAIN_SCRIPT={MAIN_SCRIPT}")
     print(f"[LAUNCHER] PYTHON_EXE={python_exe}")
 
-    kwargs: Dict[str, Any] = {"cwd": BASE_DIR}
+    env = os.environ.copy()
+    env["HEADLESS"] = "0"  # Always show GUI
+
+    kwargs: Dict[str, Any] = {"cwd": BASE_DIR, "env": env}
     if os.name == "nt":
         kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
 
