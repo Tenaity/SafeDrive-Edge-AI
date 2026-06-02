@@ -1,4 +1,4 @@
-from typing import Any, TypedDict
+﻿from typing import Any, TypedDict
 
 
 class HandsOut(TypedDict, total=False):
@@ -71,7 +71,7 @@ class PhoneContextOut(TypedDict, total=False):
 class PhoneUsageOut(TypedDict, total=False):
     phone_using: bool
     best_phone_box: list | None
-    score: int
+    score: float
     source: str | None
     temporal_track_len: int
 
@@ -143,7 +143,11 @@ DEFAULT_CONTEXT_OUT: PhoneContextOut = {
 DEFAULT_PHONE_USAGE_OUT: PhoneUsageOut = {
     "phone_using": False,
     "best_phone_box": None,
-    "score": -999,
+    "score": 0.0,
     "source": None,
     "temporal_track_len": 0,
 }
+
+
+
+

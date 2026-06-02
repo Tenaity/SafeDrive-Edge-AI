@@ -1,4 +1,4 @@
-from collections import deque
+﻿from collections import deque
 
 from utils.box_utils import safe_box, box_center, box_size, box_area, intersection_area, point_distance
 from utils.types import PhoneUsageOut
@@ -368,7 +368,7 @@ class PhoneUsagePipeline:
             }
 
         best_phone_box = None
-        best_score = -999
+        best_score = 0.0
         best_source = None
 
         for ctx in phone_contexts:

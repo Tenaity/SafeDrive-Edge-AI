@@ -1,5 +1,4 @@
-# pyright: reportMissingImports=false, reportUnknownVariableType=false, reportUnknownMemberType=false, reportUnknownArgumentType=false
-import os
+﻿import os
 import time
 import cv2  # type: ignore[import]
 import numpy as np  # type: ignore[import]

@@ -20,6 +20,8 @@ MULTI_MODEL_PATH = os.path.join(
     "best.pt",
 )
 
+VERIFY_MODEL_PATH = os.path.join(BASE_DIR, "models", "phone_radio_best.pt")
+
 # ===== PERSON MODEL CLASSES =====
 PERSON_MODEL_CLS_PERSON = 0
 
@@ -29,6 +31,10 @@ CLS_WALKIE = 1
 CLS_MOUSE = 2
 CLS_CIGARETTE_PACK = 3
 CLS_REMOTE = 4
+
+# New verify model classes: phone_radio_best.pt
+VERIFY_CLS_PHONE = 0
+VERIFY_CLS_WALKIE = 1
 
 # ===== OUTPUT CLASSES (KEEP MAIN APP COMPATIBLE) =====
 OUT_CLS_PERSON = 0
@@ -42,6 +48,11 @@ CONF_MIN_WALKIE = 0.35
 CONF_MIN_MOUSE = 0.45
 CONF_MIN_CIGARETTE = 0.45
 CONF_MIN_REMOTE = 0.45
+
+VERIFY_CONF_PHONE = 0.25
+VERIFY_CONF_WALKIE = 0.25
+VERIFY_WALKIE_IOU_THRESH = 0.12
+VERIFY_WALKIE_CENTER_DIST = 90.0
 
 MIN_BOX_AREA_RATIO = 0.0004
 MAX_BOX_AREA_RATIO = 0.12
@@ -58,8 +69,12 @@ if not os.path.exists(PERSON_MODEL_PATH):
 if not os.path.exists(MULTI_MODEL_PATH):
     raise FileNotFoundError(f"Multiclass model not found: {MULTI_MODEL_PATH}")
 
+if not os.path.exists(VERIFY_MODEL_PATH):
+    raise FileNotFoundError(f"Verify model not found: {VERIFY_MODEL_PATH}")
+
 person_model = YOLO(PERSON_MODEL_PATH)
 multi_model = YOLO(MULTI_MODEL_PATH)
+verify_model = YOLO(VERIFY_MODEL_PATH)
 
 
 def resize_keep_ratio(frame, long_side=960):
@@ -234,6 +249,78 @@ def run_person_model(infer_frame, scale):
     return persons
 
 
+def box_iou(a, b) -> float:
+    ax1, ay1, ax2, ay2 = map(float, a)
+    bx1, by1, bx2, by2 = map(float, b)
+
+    ix1 = max(ax1, bx1)
+    iy1 = max(ay1, by1)
+    ix2 = min(ax2, bx2)
+    iy2 = min(ay2, by2)
+
+    iw = max(0.0, ix2 - ix1)
+    ih = max(0.0, iy2 - iy1)
+    inter = iw * ih
+
+    if inter <= 0:
+        return 0.0
+
+    area_a = box_area(a)
+    area_b = box_area(b)
+    union = area_a + area_b - inter
+
+    if union <= 0:
+        return 0.0
+
+    return inter / union
+
+
+def run_verify_model_once(infer_frame, scale, frame_w, frame_h, driver_box):
+    walkies = []
+    phones = []
+
+    results = verify_model(
+        infer_frame,
+        verbose=False,
+        classes=[VERIFY_CLS_PHONE, VERIFY_CLS_WALKIE],
+        conf=min(VERIFY_CONF_PHONE, VERIFY_CONF_WALKIE),
+        imgsz=INFER_LONG_SIDE,
+    )
+
+    for r in results:
+        if r.boxes is None:
+            continue
+
+        boxes = r.boxes
+        xyxy = boxes.xyxy.cpu().numpy() if boxes.xyxy is not None else []
+        conf = boxes.conf.cpu().numpy() if boxes.conf is not None else []
+        cls = boxes.cls.cpu().numpy() if boxes.cls is not None else []
+
+        for i in range(len(xyxy)):
+            c = int(cls[i])
+            score = float(conf[i])
+
+            box_small = [float(v) for v in xyxy[i].tolist()]
+            box = scale_box_back(box_small, scale)
+
+            if not valid_small_object_box(box, frame_w, frame_h):
+                continue
+            if not box_inside_driver_context(box, driver_box):
+                continue
+
+            item = {"cls": c, "conf": score, "xyxy": box}
+
+            if c == VERIFY_CLS_WALKIE and score >= VERIFY_CONF_WALKIE:
+                walkies.append(item)
+            elif c == VERIFY_CLS_PHONE and score >= VERIFY_CONF_PHONE:
+                phones.append(item)
+
+    return {
+        "verify_walkies": dedup_boxes(walkies, dist_thresh=18.0),
+        "verify_phones": dedup_boxes(phones, dist_thresh=18.0),
+    }
+
+
 def run_multi_model(infer_frame, scale, frame_w, frame_h, driver_box):
     phones = []
     walkies = []
@@ -241,6 +328,7 @@ def run_multi_model(infer_frame, scale, frame_w, frame_h, driver_box):
     cigarette_packs = []
     remotes = []
 
+    # Stage 1: model cu bat phone truoc
     results = multi_model(
         infer_frame,
         verbose=False,
@@ -289,12 +377,29 @@ def run_multi_model(infer_frame, scale, frame_w, frame_h, driver_box):
     cigarette_packs = dedup_boxes(cigarette_packs, dist_thresh=18.0)
     remotes = dedup_boxes(remotes, dist_thresh=18.0)
 
+    # Stage 2: chi khi model cu da thay phone moi chay model moi verify bo dam
+    verify_walkies = []
+    verify_phones = []
+
+    if len(phones) > 0:
+        verify_out = run_verify_model_once(
+            infer_frame=infer_frame,
+            scale=scale,
+            frame_w=frame_w,
+            frame_h=frame_h,
+            driver_box=driver_box,
+        )
+        verify_walkies = verify_out["verify_walkies"]
+        verify_phones = verify_out["verify_phones"]
+
     filtered_phones = []
+
     for ph in phones:
         ph_box = ph["xyxy"]
         ph_conf = float(ph["conf"])
         reject = False
 
+        # Logic cu: walkie/mouse/cigarette/remote cua model cu co the chan phone
         for other_group in [walkies, mice, cigarette_packs, remotes]:
             for ot in other_group:
                 if center_distance(ph_box, ot["xyxy"]) <= 22.0 and float(ot["conf"]) >= ph_conf + 0.03:
@@ -302,6 +407,16 @@ def run_multi_model(infer_frame, scale, frame_w, frame_h, driver_box):
                     break
             if reject:
                 break
+
+        # Logic moi: model moi thay walkie gan/trung phone thi chan phone
+        if not reject:
+            for wk in verify_walkies:
+                iou = box_iou(ph_box, wk["xyxy"])
+                dist = center_distance(ph_box, wk["xyxy"])
+
+                if iou >= VERIFY_WALKIE_IOU_THRESH or dist <= VERIFY_WALKIE_CENTER_DIST:
+                    reject = True
+                    break
 
         if not reject:
             filtered_phones.append({
@@ -316,8 +431,9 @@ def run_multi_model(infer_frame, scale, frame_w, frame_h, driver_box):
         "mice": mice,
         "cigarette_packs": cigarette_packs,
         "remotes": remotes,
+        "verify_walkies": verify_walkies,
+        "verify_phones": verify_phones,
     }
-
 
 @app.on_event("startup")
 def startup_event():
@@ -340,6 +456,17 @@ def startup_event():
     except Exception as e:
         print(f"[YOLO SERVER] Multiclass warmup failed: {e}")
 
+    try:
+        verify_model(
+            dummy,
+            verbose=False,
+            classes=[VERIFY_CLS_PHONE, VERIFY_CLS_WALKIE],
+            imgsz=INFER_LONG_SIDE
+        )
+        print(f"[YOLO SERVER] Verify warmup done. Model: {VERIFY_MODEL_PATH}, imgsz={INFER_LONG_SIDE}")
+    except Exception as e:
+        print(f"[YOLO SERVER] Verify warmup failed: {e}")
+
 
 @app.get("/health")
 def health():
@@ -347,6 +474,7 @@ def health():
         "ok": True,
         "person_model": PERSON_MODEL_PATH,
         "multiclass_model": MULTI_MODEL_PATH,
+        "verify_model": VERIFY_MODEL_PATH,
         "imgsz": INFER_LONG_SIDE
     }
 

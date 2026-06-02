@@ -1,5 +1,4 @@
-# pyright: reportMissingImports=false, reportUnknownMemberType=false, reportUnknownArgumentType=false, reportUnknownVariableType=false
-import sys
+﻿import sys
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
@@ -159,7 +158,7 @@ cached_context_out: PhoneContextOut = {
 cached_phone_usage_out: PhoneUsageOut = {
     "phone_using": False,
     "best_phone_box": None,
-    "score": -999,
+    "score": 0.0,
     "source": None,
     "temporal_track_len": 0,
 }
@@ -815,7 +814,7 @@ try:
         context_out = cached_context_out
         phone_usage_out = cached_phone_usage_out
 
-        alert = policy.decide(vision_out, driver_out, hands_out, crane_out, phone_usage_out)
+        alert = policy.decide(cast(dict, vision_out), cast(dict, driver_out), cast(dict, hands_out), cast(dict, crane_out), cast(dict, phone_usage_out))
         log_debug_once_per_sec(vision_out, driver_out, hands_out, crane_out, alert, phone_usage_out)
 
         if alert.name != "NONE":
@@ -1035,3 +1034,7 @@ finally:
         cv2.destroyAllWindows()
 
     print("Edge AI stopped.")
+
+
+
+

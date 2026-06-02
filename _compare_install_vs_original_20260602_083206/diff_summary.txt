@@ -1,0 +1,35 @@
+﻿==================================================
+COMPARE INSTALL APP VS ORIGINAL APP
+==================================================
+Time         : 2026-06-02 08:33:14
+INSTALL_APP  : D:\project_detectfaceandphone\file cài\Deploy_Offline_FINAL\app\SafeDrive-Edge-AI
+ORIGINAL_APP : D:\project_detectfaceandphone\SafeDrive-Edge-AI
+
+SUMMARY
+--------------------------------------------------
+SAME             : 0
+CHANGED          : 0
+NEW_IN_INSTALL   : 0
+ONLY_IN_ORIGINAL : 0
+
+REPORT FILES
+--------------------------------------------------
+CSV : D:\project_detectfaceandphone\SafeDrive-Edge-AI\_compare_install_vs_original_20260602_083206\diff_files.csv
+TXT : D:\project_detectfaceandphone\SafeDrive-Edge-AI\_compare_install_vs_original_20260602_083206\diff_summary.txt
+
+IMPORTANT CHANGED / NEW FILES FROM INSTALL
+--------------------------------------------------
+
+
+ALL CHANGED
+--------------------------------------------------
+
+
+ALL NEW IN INSTALL
+--------------------------------------------------
+
+
+ALL ONLY IN ORIGINAL
+--------------------------------------------------
+
+==================================================
