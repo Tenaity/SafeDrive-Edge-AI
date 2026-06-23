@@ -9,14 +9,6 @@ set "PY_EXE=%APP_ROOT%\.venv\Scripts\python.exe"
 if exist "%PY_EXE%" (
     if exist "%APP_ROOT%\tools\play_startup_voice.py" (
         echo [STARTUP VOICE] Playing startup voice...
-        start "" /B "%PY_EXE%" "%APP_ROOT%\tools\play_startup_voice.py"
-    )
-) else (
-    echo [STARTUP VOICE] Python not found: %PY_EXE%
-)
-if exist "%PY_EXE%" (
-    if exist "%APP_ROOT%\tools\play_startup_voice.py" (
-        echo [STARTUP VOICE] Playing startup voice...
         "%PY_EXE%" "%APP_ROOT%\tools\play_startup_voice.py"
     )
 ) else (
@@ -89,5 +81,4 @@ goto END
 :END
 endlocal
 exit /b
-
 
