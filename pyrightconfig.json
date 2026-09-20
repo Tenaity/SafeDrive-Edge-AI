@@ -1,0 +1,52 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+
+  "include": [
+    "main.py",
+    "launcher.py",
+    "yolo_server.py",
+    "alerts",
+    "driver_state",
+    "pipelines",
+    "policy",
+    "plc",
+    "utils",
+    "scripts"
+  ],
+
+  "exclude": [
+    "**/node_modules",
+    "**/__pycache__",
+    "**/.*",
+    "**/.git",
+    "**/.venv",
+    "**/.pytest_cache",
+    "**/datasets",
+    "**/runs",
+    "**/output",
+    "**/logs",
+    "**/Deploy_Offline",
+    "**/_backup_app",
+    "**/*.bak_*",
+    "**/*.zip",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.png",
+    "**/*.pt",
+    "**/*.onnx",
+    "**/*.task",
+    "**/site-packages"
+  ],
+
+  "typeCheckingMode": "basic",
+
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownArgumentType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownParameterType": "none",
+  "reportPrivateUsage": "none",
+  "reportUnnecessaryCast": "none"
+}
