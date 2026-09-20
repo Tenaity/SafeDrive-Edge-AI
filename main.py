@@ -1,4 +1,4 @@
-﻿import sys
+import sys
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
     sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
@@ -767,9 +767,27 @@ try:
         log_vision_once_per_sec(vision_out)
         log_driver_once_per_sec(driver_out)
 
-        person_box = None
+        # Keep the last valid person box briefly when YOLO misses frames.
+        current_person_box = None
+
         if vision_out.get("persons"):
-            person_box = vision_out.get("persons", [{}])[0].get("xyxy")  # type: ignore
+            current_person_box = vision_out.get("persons", [{}])[0].get("xyxy")  # type: ignore
+
+        if "_last_person_box" not in globals():
+            _last_person_box = None
+            _last_person_box_time = 0.0
+
+        if current_person_box is not None:
+            _last_person_box = current_person_box
+            _last_person_box_time = now
+
+        if (
+            _last_person_box is not None
+            and (now - _last_person_box_time) <= 1.0
+        ):
+            person_box = _last_person_box
+        else:
+            person_box = None
 
         driver_body_box = make_driver_body_box(person_box)
 

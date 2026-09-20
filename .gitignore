@@ -107,3 +107,9 @@ wrong_class_list.txt
 output/
 outputs/
 test_outputs/
+# Local virtual environments
+.venv/
+.venv_old/
+
+# Local backup files
+*.bak*

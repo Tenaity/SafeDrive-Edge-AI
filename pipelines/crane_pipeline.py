@@ -56,7 +56,7 @@ class CranePipeline:
 
         self.ip = os.getenv("PLC_IP", "192.168.150.103")
         self.rack = int(os.getenv("PLC_RACK", "0"))
-        self.slot = int(os.getenv("PLC_SLOT", "2"))
+        self.slot = int(os.getenv("PLC_SLOT", "1"))
         self.mock_mode = os.getenv("MOCK_PLC", "false").lower() == "true"
 
         self.client = None

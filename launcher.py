@@ -33,7 +33,7 @@ PLC_RACK = int(os.getenv("PLC_RACK", "0"))
 
 # S7-300 thường là slot 2. Nếu PLC của anh dùng slot 1 thì sửa trong .env:
 # PLC_SLOT=1
-PLC_SLOT = int(os.getenv("PLC_SLOT", "2"))
+PLC_SLOT = int(os.getenv("PLC_SLOT", "1"))
 
 # START BIT: DB17.DBX16.4
 START_DB_NUMBER = int(os.getenv("START_DB_NUMBER", "17"))
